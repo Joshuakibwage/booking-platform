@@ -37,3 +37,6 @@ jobs:
 
       - name: Check API TypeScript
         run: pnpm --filter api typecheck
+
+      - name: Build API
+        run: pnpm --filter api build
