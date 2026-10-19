@@ -1,14 +1,24 @@
-import { describe, it, expect } from "vitest";
+
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import request from "supertest";
-import app from "./app.js";
 import express from "express";
+import app from "./app.js";
 import errorHandler from "./error-handler.js";
 
+const { queryMock } = vi.hoisted(() => ({
+    queryMock: vi.fn(),
+}));
+
+vi.mock("./db.js", () => ({
+    default: {
+        query: queryMock,
+    },
+}));
 
 const errorTestApp = express();
 
 errorTestApp.get("/trigger-error", (_req, _res, next) => {
-  next(new Error("Test error"));
+    next(new Error("Test error"));
 });
 
 errorTestApp.use(errorHandler);
@@ -21,17 +31,50 @@ describe("GET /health", () => {
         expect(response.body).toEqual({
             status: "ok",
         });
-    }),
+    });
 
-    it("Should return a 404 for an unknown route", async() => {
+    it("should return a 404 for an unknown route", async () => {
         const response = await request(app).get("/unknown");
 
         expect(response.status).toBe(404);
         expect(response.body).toEqual({
             status: "error",
-            message: "Route not found"
-        })
-    })
+            message: "Route not found",
+        });
+    });
+});
+
+describe("GET /health/db", () => {
+    beforeEach(() => {
+        queryMock.mockReset();
+    });
+
+    it("should return 200 when the database is connected", async () => {
+        queryMock.mockResolvedValueOnce({ rows: [] });
+
+        const response = await request(app).get("/health/db");
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            status: "ok",
+            database: "connected",
+        });
+        expect(queryMock).toHaveBeenCalledWith("SELECT 1");
+    });
+
+    it("should return 503 when the database query fails", async () => {
+        queryMock.mockRejectedValueOnce(
+            new Error("Database unavailable"),
+        );
+
+        const response = await request(app).get("/health/db");
+
+        expect(response.status).toBe(503);
+        expect(response.body).toEqual({
+            status: "error",
+            database: "disconnected",
+        });
+    });
 });
 
 describe("Error handling", () => {
