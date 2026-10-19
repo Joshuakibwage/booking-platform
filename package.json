@@ -2,7 +2,12 @@
   "name": "booking-platform",
   "version": "1.0.0",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "db:new": "dbmate --migrations-dir apps/database/migrations new",
+    "db:status": "dotenv -e .env.local -- dbmate --env DEV_DATABASE_URL --migrations-dir apps/database/migrations status",
+    "db:up": "dotenv -e .env.local -- dbmate --env DEV_DATABASE_URL --migrations-dir apps/database/migrations up",
+    "db:rollback": "dotenv -e .env.local -- dbmate --env DEV_DATABASE_URL --migrations-dir apps/database/migrations rollback"
+  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
@@ -15,5 +20,9 @@
   "dependencies": {
     "@neon/config": "^1.9.2",
     "@neon/env": "^1.6.3"
+  },
+  "devDependencies": {
+    "dbmate": "^2.36.0",
+    "dotenv-cli": "^11.0.0"
   }
 }
