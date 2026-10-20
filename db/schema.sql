@@ -34,6 +34,24 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: availability_exceptions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.availability_exceptions (
+    exception_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    professional_id uuid NOT NULL,
+    exception_date date NOT NULL,
+    is_available boolean NOT NULL,
+    start_time time without time zone,
+    end_time time without time zone,
+    reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT availability_exceptions_check CHECK ((((is_available = true) AND (start_time IS NOT NULL) AND (end_time IS NOT NULL)) OR ((is_available = false) AND (start_time IS NULL) AND (end_time IS NULL)))),
+    CONSTRAINT availability_exceptions_check1 CHECK (((is_available = false) OR (end_time > start_time)))
+);
+
+
+--
 -- Name: professional_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -103,6 +121,22 @@ CREATE TABLE public.weekly_availability (
 
 
 --
+-- Name: availability_exceptions availability_exceptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.availability_exceptions
+    ADD CONSTRAINT availability_exceptions_pkey PRIMARY KEY (exception_id);
+
+
+--
+-- Name: availability_exceptions availability_exceptions_professional_id_exception_date_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.availability_exceptions
+    ADD CONSTRAINT availability_exceptions_professional_id_exception_date_key UNIQUE (professional_id, exception_date);
+
+
+--
 -- Name: weekly_availability no_overlapping_availability; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -167,6 +201,14 @@ ALTER TABLE ONLY public.weekly_availability
 
 
 --
+-- Name: availability_exceptions availability_exceptions_professional_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.availability_exceptions
+    ADD CONSTRAINT availability_exceptions_professional_id_fkey FOREIGN KEY (professional_id) REFERENCES public.professional_profiles(profile_id);
+
+
+--
 -- Name: professional_profiles professional_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -205,4 +247,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('001'),
     ('20261020061847'),
     ('20261020071829'),
-    ('20261020083136');
+    ('20261020083136'),
+    ('20261020094503');
