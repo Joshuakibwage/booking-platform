@@ -15,6 +15,20 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: btree_gist; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -73,6 +87,30 @@ CREATE TABLE public.users (
 
 
 --
+-- Name: weekly_availability; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_availability (
+    availability_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    professional_id uuid NOT NULL,
+    day_of_week smallint NOT NULL,
+    start_time time without time zone NOT NULL,
+    end_time time without time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT weekly_availability_check CHECK ((end_time > start_time)),
+    CONSTRAINT weekly_availability_day_of_week_check CHECK (((day_of_week >= 1) AND (day_of_week <= 7)))
+);
+
+
+--
+-- Name: weekly_availability no_overlapping_availability; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_availability
+    ADD CONSTRAINT no_overlapping_availability EXCLUDE USING gist (professional_id WITH =, day_of_week WITH =, int4range((EXTRACT(epoch FROM start_time))::integer, (EXTRACT(epoch FROM end_time))::integer, '[)'::text) WITH &&);
+
+
+--
 -- Name: professional_profiles professional_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -121,6 +159,14 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: weekly_availability weekly_availability_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_availability
+    ADD CONSTRAINT weekly_availability_pkey PRIMARY KEY (availability_id);
+
+
+--
 -- Name: professional_profiles professional_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -137,6 +183,14 @@ ALTER TABLE ONLY public.services
 
 
 --
+-- Name: weekly_availability weekly_availability_professional_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_availability
+    ADD CONSTRAINT weekly_availability_professional_id_fkey FOREIGN KEY (professional_id) REFERENCES public.professional_profiles(profile_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -150,4 +204,5 @@ ALTER TABLE ONLY public.services
 INSERT INTO public.schema_migrations (version) VALUES
     ('001'),
     ('20261020061847'),
-    ('20261020071829');
+    ('20261020071829'),
+    ('20261020083136');
