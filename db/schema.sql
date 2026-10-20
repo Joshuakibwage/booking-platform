@@ -42,6 +42,24 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.services (
+    service_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    professional_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    description text,
+    duration_minutes integer NOT NULL,
+    price numeric(10,2) NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT services_duration_minutes_check CHECK ((duration_minutes > 0)),
+    CONSTRAINT services_price_check CHECK ((price >= (0)::numeric))
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -79,6 +97,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT services_pkey PRIMARY KEY (service_id);
+
+
+--
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -103,6 +129,14 @@ ALTER TABLE ONLY public.professional_profiles
 
 
 --
+-- Name: services services_professional_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT services_professional_id_fkey FOREIGN KEY (professional_id) REFERENCES public.professional_profiles(profile_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -115,4 +149,5 @@ ALTER TABLE ONLY public.professional_profiles
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('001'),
-    ('20261020061847');
+    ('20261020061847'),
+    ('20261020071829');
