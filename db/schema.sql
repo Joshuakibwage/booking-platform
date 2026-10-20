@@ -52,6 +52,29 @@ CREATE TABLE public.availability_exceptions (
 
 
 --
+-- Name: bookings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.bookings (
+    booking_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    customer_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
+    service_id uuid NOT NULL,
+    service_name character varying(120) NOT NULL,
+    service_duration_minutes integer NOT NULL,
+    service_price numeric(10,2) NOT NULL,
+    start_time timestamp with time zone NOT NULL,
+    end_time timestamp with time zone NOT NULL,
+    status character varying(20) DEFAULT 'confirmed'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT bookings_service_duration_minutes_check CHECK ((service_duration_minutes > 0)),
+    CONSTRAINT bookings_service_price_check CHECK ((service_price >= (0)::numeric)),
+    CONSTRAINT bookings_status_check CHECK (((status)::text = ANY ((ARRAY['confirmed'::character varying, 'cancelled'::character varying, 'completed'::character varying, 'no_show'::character varying])::text[]))),
+    CONSTRAINT valid_booking_duration CHECK ((end_time = (start_time + ((service_duration_minutes)::double precision * '00:01:00'::interval))))
+);
+
+
+--
 -- Name: professional_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -137,6 +160,22 @@ ALTER TABLE ONLY public.availability_exceptions
 
 
 --
+-- Name: bookings bookings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_pkey PRIMARY KEY (booking_id);
+
+
+--
+-- Name: bookings no_overlapping_active_bookings; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT no_overlapping_active_bookings EXCLUDE USING gist (professional_id WITH =, tstzrange(start_time, end_time, '[)'::text) WITH &&) WHERE (((status)::text = 'confirmed'::text));
+
+
+--
 -- Name: weekly_availability no_overlapping_availability; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -209,6 +248,30 @@ ALTER TABLE ONLY public.availability_exceptions
 
 
 --
+-- Name: bookings bookings_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.users(user_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: bookings bookings_professional_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_professional_id_fkey FOREIGN KEY (professional_id) REFERENCES public.professional_profiles(profile_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: bookings bookings_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(service_id) ON DELETE RESTRICT;
+
+
+--
 -- Name: professional_profiles professional_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -248,4 +311,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261020061847'),
     ('20261020071829'),
     ('20261020083136'),
-    ('20261020094503');
+    ('20261020094503'),
+    ('20261020113213');
