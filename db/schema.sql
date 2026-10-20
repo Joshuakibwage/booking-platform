@@ -20,6 +20,19 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: professional_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.professional_profiles (
+    profile_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    bio text,
+    time_zone character varying(100) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -39,6 +52,22 @@ CREATE TABLE public.users (
     display_name character varying(100) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: professional_profiles professional_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_profiles
+    ADD CONSTRAINT professional_profiles_pkey PRIMARY KEY (profile_id);
+
+
+--
+-- Name: professional_profiles professional_profiles_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_profiles
+    ADD CONSTRAINT professional_profiles_user_id_key UNIQUE (user_id);
 
 
 --
@@ -66,6 +95,14 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: professional_profiles professional_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_profiles
+    ADD CONSTRAINT professional_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -77,4 +114,5 @@ ALTER TABLE ONLY public.users
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('001');
+    ('001'),
+    ('20261020061847');
