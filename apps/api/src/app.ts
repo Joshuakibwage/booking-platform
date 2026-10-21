@@ -2,6 +2,10 @@ import express, { type Express, } from "express";
 import errorHandler from "./error-handler.js";
 import pool from "./db.js";
 
+// routers
+import bookingRouter from "./routes/booking.routes.js";
+
+
 const app: Express = express();
 
 app.use(express.json());
@@ -27,6 +31,10 @@ app.get("/health/db", async (_req, res) => {
     });
   }
 });
+
+
+// routes
+app.use("/bookings", bookingRouter);
 
 app.use((_req, res) => {
     res.status(404).json({
