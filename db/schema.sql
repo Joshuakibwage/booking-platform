@@ -1,6 +1,6 @@
 \restrict dbmate
 
--- Dumped from database version 18.6 (653b019)
+-- Dumped from database version 18.6 (fd34222)
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-1.pgdg24.04+2)
 
 SET statement_timeout = 0;
