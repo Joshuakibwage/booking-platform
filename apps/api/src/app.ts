@@ -4,6 +4,7 @@ import pool from "./db.js";
 
 // routers
 import bookingRouter from "./routes/booking.routes.js";
+import availabilityRouter from "./routes/availability.routes.js";
 
 
 const app: Express = express();
@@ -35,6 +36,8 @@ app.get("/health/db", async (_req, res) => {
 
 // routes
 app.use("/bookings", bookingRouter);
+app.use("/professionals", availabilityRouter);
+
 
 app.use((_req, res) => {
     res.status(404).json({
