@@ -12,6 +12,11 @@ export type WeeklyAvailability = {
     end_time: string;
 };
 
+export type OccupiedBookingInterval = {
+    start_time: Date;
+    end_time: Date;
+};
+
 export async function findAvailabilityException(
     professionalId: string,
     localDate: string,
@@ -48,6 +53,31 @@ export async function findWeeklyAvailability(
         ORDER BY start_time
         `,
         [professionalId, dayOfWeek],
+    );
+
+    return result.rows;
+}
+
+
+export async function findConfirmedBookingsForDate(
+    professionalId: string,
+    dayStart: Date,
+    dayEnd: Date,
+    client?: PoolClient,
+): Promise<OccupiedBookingInterval[]> {
+    const db = client ?? pool;
+
+    const result = await db.query<OccupiedBookingInterval>(
+        `
+        SELECT start_time, end_time
+        FROM bookings
+        WHERE professional_id = $1
+          AND status = 'confirmed'
+          AND start_time < $3
+          AND end_time > $2
+        ORDER BY start_time
+        `,
+        [professionalId, dayStart, dayEnd],
     );
 
     return result.rows;

@@ -1,5 +1,10 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+    findAvailabilityException,
+    findWeeklyAvailability,
+    findConfirmedBookingsForDate,
+} from "./availability.repository.js";
 
 const { queryMock } = vi.hoisted(() => ({
     queryMock: vi.fn(),
@@ -11,10 +16,6 @@ vi.mock("../db.js", () => ({
     },
 }));
 
-import {
-    findAvailabilityException,
-    findWeeklyAvailability,
-} from "./availability.repository.js";
 
 describe("availability repository", () => {
     beforeEach(() => {
@@ -79,6 +80,38 @@ describe("availability repository", () => {
         expect(queryMock).toHaveBeenCalledWith(
             expect.stringContaining("FROM weekly_availability"),
             ["550e8400-e29b-41d4-a716-446655440000", 1],
+        );
+    });
+
+    it("returns confirmed bookings overlapping the requested day", async () => {
+        const bookings = [
+            {
+                start_time: new Date("2026-11-04T08:00:00Z"),
+                end_time: new Date("2026-11-04T09:00:00Z"),
+            },
+        ];
+
+        queryMock.mockResolvedValue({
+            rows: bookings,
+        });
+
+        const dayStart = new Date("2026-11-03T21:00:00Z");
+        const dayEnd = new Date("2026-11-04T21:00:00Z");
+
+        const result = await findConfirmedBookingsForDate(
+            "550e8400-e29b-41d4-a716-446655440000",
+            dayStart,
+            dayEnd,
+        );
+
+        expect(result).toEqual(bookings);
+        expect(queryMock).toHaveBeenCalledWith(
+            expect.stringContaining("FROM bookings"),
+            [
+                "550e8400-e29b-41d4-a716-446655440000",
+                dayStart,
+                dayEnd,
+            ],
         );
     });
 });
