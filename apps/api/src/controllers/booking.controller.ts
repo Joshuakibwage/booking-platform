@@ -1,8 +1,11 @@
 
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
+import {
+    cancelBookingById,
+    createBooking as createBookingService,
+} from "../services/booking.service.js";
 import { validateBookingInput } from "../validators/booking.validator.js";
-import { createBooking as createBookingService } from "../services/booking.service.js";
-
+import { validateBookingId } from "../validators/cancel-booking.validator.js";
 
 export async function createBooking(
     req: Request,
@@ -28,7 +31,7 @@ export async function createBooking(
                     status: "error",
                     message: result.reason,
                 });
-            return;
+                return;
 
             case "outside_availability":
             case "slot_unavailable":
@@ -36,7 +39,7 @@ export async function createBooking(
                     status: "error",
                     message: result.reason,
                 });
-            return;
+                return;
         }
     }
 
@@ -44,4 +47,42 @@ export async function createBooking(
         status: "success",
         data: result.booking,
     });
+}
+
+export async function cancelBooking(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+): Promise<void> {
+    const bookingId = validateBookingId(req.params.bookingId);
+
+    if (!bookingId) {
+        res.status(400).json({
+            status: "error",
+            message: "Invalid booking ID",
+        });
+        return;
+    }
+
+    try {
+        const result = await cancelBookingById(bookingId);
+
+        if (!result.ok) {
+            const statusCode =
+                result.reason === "booking_not_found" ? 404 : 409;
+
+            res.status(statusCode).json({
+                status: "error",
+                message: result.reason,
+            });
+            return;
+        }
+
+        res.status(200).json({
+            status: "success",
+            data: result.booking,
+        });
+    } catch (error) {
+        next(error);
+    }
 }

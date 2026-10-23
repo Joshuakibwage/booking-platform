@@ -5,7 +5,10 @@ import type { CreateBookingInput } from "../types/booking.types.js";
 import { isWithinAvailability } from "./availability.service.js";
 import type { PoolClient } from "pg";
 import pool from "../db.js";
+
 import {
+    cancelBooking,
+    findBookingById,
     findBookings,
     insertBooking,
     type CreatedBooking,
@@ -42,6 +45,32 @@ export type GetBookingsResult = {
         totalPages: number;
     };
 };
+
+export type CancelBookingResult =
+    | {
+          ok: true;
+          booking: CreatedBooking;
+      }
+    | {
+          ok: false;
+          reason: "booking_not_found" | "booking_not_cancellable";
+      };
+
+
+export type CreateBookingResult =
+    | {
+          ok: true;
+          booking: CreatedBooking;
+      }
+    | {
+          ok: false;
+          reason:
+              | "customer_not_found"
+              | "service_not_found"
+              | "outside_availability"
+              | "slot_unavailable";
+      };
+
 
 
 export async function prepareBooking(
@@ -99,20 +128,6 @@ export async function prepareBooking(
 }
 
 
-
-export type CreateBookingResult =
-    | {
-          ok: true;
-          booking: CreatedBooking;
-      }
-    | {
-          ok: false;
-          reason:
-              | "customer_not_found"
-              | "service_not_found"
-              | "outside_availability"
-              | "slot_unavailable";
-      };
 
 export async function createBooking(
     input: CreateBookingInput,
@@ -191,5 +206,34 @@ export async function getBookings(
             total: result.total,
             totalPages: Math.ceil(result.total / input.limit),
         },
+    };
+}
+
+
+
+export async function cancelBookingById(
+    bookingId: string,
+): Promise<CancelBookingResult> {
+    const booking = await cancelBooking(bookingId);
+
+    if (booking) {
+        return {
+            ok: true,
+            booking,
+        };
+    }
+
+    const existingBooking = await findBookingById(bookingId);
+
+    if (!existingBooking) {
+        return {
+            ok: false,
+            reason: "booking_not_found",
+        };
+    }
+
+    return {
+        ok: false,
+        reason: "booking_not_cancellable",
     };
 }

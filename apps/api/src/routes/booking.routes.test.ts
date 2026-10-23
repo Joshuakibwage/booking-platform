@@ -2,12 +2,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 
-const { createBookingMock } = vi.hoisted(() => ({
+const {
+    createBookingMock,
+    cancelBookingByIdMock,
+} = vi.hoisted(() => ({
     createBookingMock: vi.fn(),
+    cancelBookingByIdMock: vi.fn(),
 }));
 
 vi.mock("../services/booking.service.js", () => ({
     createBooking: createBookingMock,
+    cancelBookingById: cancelBookingByIdMock,
 }));
 
 import app from "../app.js";
@@ -64,7 +69,6 @@ describe("POST /bookings", () => {
             startTime: "2026-11-02T09:00:00+03:00",
         });
     });
-
 
     it("returns 404 when the customer does not exist", async () => {
         createBookingMock.mockResolvedValue({
@@ -137,5 +141,84 @@ describe("POST /bookings", () => {
         expect(response.status).toBe(409);
         expect(response.body.message).toBe("slot_unavailable");
     });
+});
 
+describe("PATCH /bookings/:bookingId/cancel", () => {
+    const bookingId = "9ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+    beforeEach(() => {
+        cancelBookingByIdMock.mockReset();
+    });
+
+    it("returns 400 when the booking ID is invalid", async () => {
+        const response = await request(app)
+            .patch("/bookings/not-a-uuid/cancel");
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Invalid booking ID",
+        });
+
+        expect(cancelBookingByIdMock).not.toHaveBeenCalled();
+    });
+
+    it("cancels a booking and returns 200", async () => {
+        const booking = {
+            booking_id: bookingId,
+            status: "cancelled",
+        };
+
+        cancelBookingByIdMock.mockResolvedValue({
+            ok: true,
+            booking,
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/cancel`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            status: "success",
+            data: booking,
+        });
+
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+    });
+
+    it("returns 404 when the booking does not exist", async () => {
+        cancelBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "booking_not_found",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/cancel`);
+
+        expect(response.status).toBe(404);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "booking_not_found",
+        });
+
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+    });
+
+    it("returns 409 when the booking cannot be cancelled", async () => {
+        cancelBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "booking_not_cancellable",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/cancel`);
+
+        expect(response.status).toBe(409);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "booking_not_cancellable",
+        });
+
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+    });
 });
