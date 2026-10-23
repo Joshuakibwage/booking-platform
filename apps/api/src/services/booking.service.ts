@@ -6,8 +6,10 @@ import { isWithinAvailability } from "./availability.service.js";
 import type { PoolClient } from "pg";
 import pool from "../db.js";
 import {
+    findBookings,
     insertBooking,
     type CreatedBooking,
+    type FindBookingsInput,
 } from "../repositories/booking.repository.js";
 
 
@@ -28,6 +30,18 @@ export type BookingPreparation =
               | "service_not_found"
               | "outside_availability";
       };
+
+
+
+export type GetBookingsResult = {
+    bookings: CreatedBooking[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+};
 
 
 export async function prepareBooking(
@@ -159,4 +173,23 @@ export async function createBooking(
     } finally {
         client.release();
     }
+}
+
+
+
+
+export async function getBookings(
+    input: FindBookingsInput,
+): Promise<GetBookingsResult> {
+    const result = await findBookings(input);
+
+    return {
+        bookings: result.bookings,
+        pagination: {
+            page: input.page,
+            limit: input.limit,
+            total: result.total,
+            totalPages: Math.ceil(result.total / input.limit),
+        },
+    };
 }

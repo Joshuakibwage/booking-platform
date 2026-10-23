@@ -1,12 +1,26 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoolClient } from "pg";
-import { insertBooking } from "./booking.repository.js";
 
-const queryMock = vi.fn();
+const { poolQueryMock } = vi.hoisted(() => ({
+    poolQueryMock: vi.fn(),
+}));
+
+vi.mock("../db.js", () => ({
+    default: {
+        query: poolQueryMock,
+    },
+}));
+
+import {
+    findBookings,
+    insertBooking,
+} from "./booking.repository.js";
+
+const clientQueryMock = vi.fn();
 
 const client = {
-    query: queryMock,
+    query: clientQueryMock,
 } as unknown as PoolClient;
 
 const booking = {
@@ -43,16 +57,16 @@ describe("insertBooking", () => {
     });
 
     it("inserts the booking and returns the created record", async () => {
-        queryMock.mockResolvedValue({
+        clientQueryMock.mockResolvedValue({
             rows: [createdBooking],
         });
 
         const result = await insertBooking(client, booking);
 
         expect(result).toEqual(createdBooking);
-        expect(queryMock).toHaveBeenCalledOnce();
+        expect(clientQueryMock).toHaveBeenCalledOnce();
 
-        const [sql, values] = queryMock.mock.calls[0] as [
+        const [sql, values] = clientQueryMock.mock.calls[0] as [
             string,
             unknown[],
         ];
@@ -72,12 +86,140 @@ describe("insertBooking", () => {
     });
 
     it("throws if the insert returns no record", async () => {
-        queryMock.mockResolvedValue({
+        clientQueryMock.mockResolvedValue({
             rows: [],
         });
 
         await expect(insertBooking(client, booking)).rejects.toThrow(
             "Booking insert returned no record",
         );
+    });
+});
+
+const customerId = "550e8400-e29b-41d4-a716-446655440000";
+const professionalId = "7ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+describe("findBookings", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns a customer's bookings and total count", async () => {
+        poolQueryMock
+            .mockResolvedValueOnce({
+                rows: [{ total: "1" }],
+            })
+            .mockResolvedValueOnce({
+                rows: [createdBooking],
+            });
+
+        const result = await findBookings({
+            owner: {
+                type: "customer",
+                id: customerId,
+            },
+            page: 1,
+            limit: 20,
+        });
+
+        expect(result).toEqual({
+            bookings: [createdBooking],
+            total: 1,
+        });
+
+        expect(poolQueryMock).toHaveBeenCalledTimes(2);
+        expect(poolQueryMock.mock.calls[0]?.[0]).toContain(
+            "customer_id = $1",
+        );
+        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([
+            customerId,
+        ]);
+    });
+
+    it("filters professional bookings by professional ID", async () => {
+        poolQueryMock
+            .mockResolvedValueOnce({
+                rows: [{ total: "0" }],
+            })
+            .mockResolvedValueOnce({
+                rows: [],
+            });
+
+        const result = await findBookings({
+            owner: {
+                type: "professional",
+                id: professionalId,
+            },
+            page: 1,
+            limit: 20,
+        });
+
+        expect(result).toEqual({
+            bookings: [],
+            total: 0,
+        });
+
+        expect(poolQueryMock.mock.calls[0]?.[0]).toContain(
+            "professional_id = $1",
+        );
+        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([
+            professionalId,
+        ]);
+    });
+
+    it("applies status and date filters with pagination", async () => {
+        poolQueryMock
+            .mockResolvedValueOnce({
+                rows: [{ total: "25" }],
+            })
+            .mockResolvedValueOnce({
+                rows: [createdBooking],
+            });
+
+        await findBookings({
+            owner: {
+                type: "customer",
+                id: customerId,
+            },
+            status: "confirmed",
+            from: "2026-11-01",
+            to: "2026-11-30",
+            page: 2,
+            limit: 10,
+        });
+
+        const countCall = poolQueryMock.mock.calls[0] as [
+            string,
+            unknown[],
+        ];
+
+        const bookingsCall = poolQueryMock.mock.calls[1] as [
+            string,
+            unknown[],
+        ];
+
+        expect(countCall[0]).toContain("status = $2");
+        expect(countCall[0]).toContain("start_time >= $3::date");
+        expect(countCall[0]).toContain("start_time < $4::date");
+
+        expect(countCall[1]).toEqual([
+            customerId,
+            "confirmed",
+            "2026-11-01",
+            "2026-12-01",
+        ]);
+
+        expect(bookingsCall[0]).toContain("ORDER BY start_time DESC");
+        expect(bookingsCall[0]).toContain("LIMIT $5");
+        expect(bookingsCall[0]).toContain("OFFSET $6");
+
+        expect(bookingsCall[1]).toEqual([
+            customerId,
+            "confirmed",
+            "2026-11-01",
+            "2026-12-01",
+            10,
+            10,
+        ]);
     });
 });
