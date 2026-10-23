@@ -1,11 +1,21 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+    getBookings,
+    prepareBooking,
+} from "./booking.service.js";
 
-const { customerExistsMock, findActiveServiceMock, isWithinAvailabilityMock } = vi.hoisted(
+const {
+    customerExistsMock,
+    findActiveServiceMock,
+    isWithinAvailabilityMock,
+    findBookingsMock,
+} = vi.hoisted(
     () => ({
         customerExistsMock: vi.fn(),
         findActiveServiceMock: vi.fn(),
         isWithinAvailabilityMock: vi.fn(),
+        findBookingsMock: vi.fn(),
     }),
 );
 
@@ -21,7 +31,11 @@ vi.mock("./availability.service.js", () => ({
     isWithinAvailability: isWithinAvailabilityMock,
 }));
 
-import { prepareBooking } from "./booking.service.js";
+vi.mock("../repositories/booking.repository.js", () => ({
+    findBookings: findBookingsMock,
+    insertBooking: vi.fn(),
+}));
+
 
 const input = {
     customerId: "550e8400-e29b-41d4-a716-446655440000",
@@ -102,5 +116,74 @@ describe("prepareBooking", () => {
             ok: false,
             reason: "outside_availability",
         });
+    });
+});
+
+
+describe("getBookings", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns bookings with pagination metadata", async () => {
+        const bookings = [
+            {
+                booking_id: "9ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                status: "confirmed",
+            },
+        ];
+
+        findBookingsMock.mockResolvedValue({
+            bookings,
+            total: 25,
+        });
+
+        const input = {
+            owner: {
+                type: "customer" as const,
+                id: "550e8400-e29b-41d4-a716-446655440000",
+            },
+            page: 2,
+            limit: 10,
+        };
+
+        const result = await getBookings(input);
+
+        expect(result).toEqual({
+            bookings,
+            pagination: {
+                page: 2,
+                limit: 10,
+                total: 25,
+                totalPages: 3,
+            },
+        });
+
+        expect(findBookingsMock).toHaveBeenCalledWith(input);
+    });
+
+    it("returns zero total pages when no bookings exist", async () => {
+        findBookingsMock.mockResolvedValue({
+            bookings: [],
+            total: 0,
+        });
+
+        const result = await getBookings({
+            owner: {
+                type: "professional",
+                id: "7ba7b810-9dad-41d1-80b4-00c04fd430c8",
+            },
+            page: 1,
+            limit: 20,
+        });
+
+        expect(result.pagination).toEqual({
+            page: 1,
+            limit: 20,
+            total: 0,
+            totalPages: 0,
+        });
+
+        expect(result.bookings).toEqual([]);
     });
 });

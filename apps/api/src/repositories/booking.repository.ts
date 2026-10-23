@@ -1,4 +1,4 @@
-
+import pool from "../db.js";
 import type { PoolClient } from "pg";
 import type { ServiceForBooking } from "./service.repository.js";
 
@@ -22,6 +22,40 @@ export type CreatedBooking = {
     status: string;
     created_at: Date;
 };
+
+
+export type BookingStatus =
+    | "confirmed"
+    | "cancelled"
+    | "completed"
+    | "no_show";
+
+export type BookingOwner =
+    | {
+          type: "customer";
+          id: string;
+      }
+    | {
+          type: "professional";
+          id: string;
+      };
+
+export type FindBookingsInput = {
+    owner: BookingOwner;
+    status?: BookingStatus;
+    from?: string;
+    to?: string;
+    page: number;
+    limit: number;
+};
+
+export type BookingListItem = CreatedBooking;
+
+export type FindBookingsResult = {
+    bookings: BookingListItem[];
+    total: number;
+};
+
 
 export async function insertBooking(
     client: PoolClient,
@@ -72,4 +106,87 @@ export async function insertBooking(
     }
 
     return createdBooking;
+}
+
+
+
+export async function findBookings(
+    input: FindBookingsInput,
+): Promise<FindBookingsResult> {
+    const ownerColumn =
+        input.owner.type === "customer"
+            ? "customer_id"
+            : "professional_id";
+
+    const conditions: string[] = [
+        `${ownerColumn} = $1`,
+    ];
+
+    const values: unknown[] = [input.owner.id];
+
+    if (input.status) {
+        values.push(input.status);
+        conditions.push(`status = $${values.length}`);
+    }
+
+    if (input.from) {
+        values.push(input.from);
+        conditions.push(`start_time >= $${values.length}::date`);
+    }
+
+    if (input.to) {
+        const dayAfterTo = new Date(`${input.to}T00:00:00Z`);
+        dayAfterTo.setUTCDate(dayAfterTo.getUTCDate() + 1);
+
+        values.push(dayAfterTo.toISOString().slice(0, 10));
+        conditions.push(`start_time < $${values.length}::date`);
+    }
+
+    const whereClause = conditions.join(" AND ");
+
+    const countResult = await pool.query<{ total: string }>(
+        `
+        SELECT COUNT(*) AS total
+        FROM bookings
+        WHERE ${whereClause}
+        `,
+        values,
+    );
+
+    const total = Number(countResult.rows[0]?.total ?? 0);
+    const offset = (input.page - 1) * input.limit;
+
+    const paginationValues = [
+        ...values,
+        input.limit,
+        offset,
+    ];
+
+    const bookingsResult = await pool.query<BookingListItem>(
+        `
+        SELECT
+            booking_id,
+            customer_id,
+            professional_id,
+            service_id,
+            service_name,
+            service_duration_minutes,
+            service_price,
+            start_time,
+            end_time,
+            status,
+            created_at
+        FROM bookings
+        WHERE ${whereClause}
+        ORDER BY start_time DESC, booking_id DESC
+        LIMIT $${paginationValues.length - 1}
+        OFFSET $${paginationValues.length}
+        `,
+        paginationValues,
+    );
+
+    return {
+        bookings: bookingsResult.rows,
+        total,
+    };
 }
