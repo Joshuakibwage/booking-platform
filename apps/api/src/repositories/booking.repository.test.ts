@@ -1,6 +1,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoolClient } from "pg";
+import {
+    cancelBooking,
+    findBookings,
+    insertBooking,
+} from "./booking.repository.js";
 
 const { poolQueryMock } = vi.hoisted(() => ({
     poolQueryMock: vi.fn(),
@@ -12,10 +17,6 @@ vi.mock("../db.js", () => ({
     },
 }));
 
-import {
-    findBookings,
-    insertBooking,
-} from "./booking.repository.js";
 
 const clientQueryMock = vi.fn();
 
@@ -221,5 +222,51 @@ describe("findBookings", () => {
             10,
             10,
         ]);
+    });
+});
+
+
+
+describe("cancelBooking", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("cancels a confirmed booking and returns the updated record", async () => {
+        const cancelledBooking = {
+            ...createdBooking,
+            status: "cancelled",
+        };
+
+        poolQueryMock.mockResolvedValue({
+            rows: [cancelledBooking],
+        });
+
+        const result = await cancelBooking(createdBooking.booking_id);
+
+        expect(result).toEqual(cancelledBooking);
+        expect(poolQueryMock).toHaveBeenCalledOnce();
+
+        const [sql, values] = poolQueryMock.mock.calls[0] as [
+            string,
+            unknown[],
+        ];
+
+        expect(sql).toContain("UPDATE bookings");
+        expect(sql).toContain("SET status = 'cancelled'");
+        expect(sql).toContain("status = 'confirmed'");
+        expect(sql).toContain("RETURNING");
+        expect(values).toEqual([createdBooking.booking_id]);
+    });
+
+    it("returns null when no confirmed booking can be cancelled", async () => {
+        poolQueryMock.mockResolvedValue({
+            rows: [],
+        });
+
+        const result = await cancelBooking(createdBooking.booking_id);
+
+        expect(result).toBeNull();
+        expect(poolQueryMock).toHaveBeenCalledOnce();
     });
 });

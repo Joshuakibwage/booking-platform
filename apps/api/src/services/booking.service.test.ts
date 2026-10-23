@@ -1,6 +1,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
+    cancelBookingById,
     getBookings,
     prepareBooking,
 } from "./booking.service.js";
@@ -10,14 +12,16 @@ const {
     findActiveServiceMock,
     isWithinAvailabilityMock,
     findBookingsMock,
-} = vi.hoisted(
-    () => ({
-        customerExistsMock: vi.fn(),
-        findActiveServiceMock: vi.fn(),
-        isWithinAvailabilityMock: vi.fn(),
-        findBookingsMock: vi.fn(),
-    }),
-);
+    cancelBookingMock,
+    findBookingByIdMock,
+} = vi.hoisted(() => ({
+    customerExistsMock: vi.fn(),
+    findActiveServiceMock: vi.fn(),
+    isWithinAvailabilityMock: vi.fn(),
+    findBookingsMock: vi.fn(),
+    cancelBookingMock: vi.fn(),
+    findBookingByIdMock: vi.fn(),
+}));
 
 vi.mock("../repositories/customer.repository.js", () => ({
     customerExists: customerExistsMock,
@@ -34,6 +38,8 @@ vi.mock("./availability.service.js", () => ({
 vi.mock("../repositories/booking.repository.js", () => ({
     findBookings: findBookingsMock,
     insertBooking: vi.fn(),
+    cancelBooking: cancelBookingMock,
+    findBookingById: findBookingByIdMock,
 }));
 
 
@@ -185,5 +191,76 @@ describe("getBookings", () => {
         });
 
         expect(result.bookings).toEqual([]);
+    });
+});
+
+const bookingId = "9ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+const existingBooking = {
+    booking_id: bookingId,
+    customer_id: input.customerId,
+    professional_id: service.professional_id,
+    service_id: input.serviceId,
+    service_name: service.name,
+    service_duration_minutes: service.duration_minutes,
+    service_price: service.price,
+    start_time: new Date("2026-11-02T06:00:00.000Z"),
+    end_time: new Date("2026-11-02T06:30:00.000Z"),
+    status: "confirmed",
+    created_at: new Date("2026-10-20T10:00:00.000Z"),
+};
+
+describe("cancelBookingById", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns the cancelled booking when cancellation succeeds", async () => {
+        const cancelledBooking = {
+            ...existingBooking,
+            status: "cancelled",
+        };
+
+        cancelBookingMock.mockResolvedValue(cancelledBooking);
+
+        const result = await cancelBookingById(bookingId);
+
+        expect(result).toEqual({
+            ok: true,
+            booking: cancelledBooking,
+        });
+
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
+        expect(findBookingByIdMock).not.toHaveBeenCalled();
+    });
+
+    it("returns booking_not_found when the booking does not exist", async () => {
+        cancelBookingMock.mockResolvedValue(null);
+        findBookingByIdMock.mockResolvedValue(null);
+
+        const result = await cancelBookingById(bookingId);
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_found",
+        });
+
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
+        expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
+    });
+
+    it("returns booking_not_cancellable when the booking cannot be cancelled", async () => {
+        cancelBookingMock.mockResolvedValue(null);
+        findBookingByIdMock.mockResolvedValue(existingBooking);
+
+        const result = await cancelBookingById(bookingId);
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_cancellable",
+        });
+
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
+        expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
     });
 });

@@ -190,3 +190,60 @@ export async function findBookings(
         total,
     };
 }
+
+
+
+export async function cancelBooking(
+    bookingId: string,
+): Promise<CreatedBooking | null> {
+    const result = await pool.query<CreatedBooking>(
+        `
+        UPDATE bookings
+        SET status = 'cancelled'
+        WHERE booking_id = $1
+          AND status = 'confirmed'
+        RETURNING
+            booking_id,
+            customer_id,
+            professional_id,
+            service_id,
+            service_name,
+            service_duration_minutes,
+            service_price,
+            start_time,
+            end_time,
+            status,
+            created_at
+        `,
+        [bookingId],
+    );
+
+    return result.rows[0] ?? null;
+}
+
+
+export async function findBookingById(
+    bookingId: string,
+): Promise<CreatedBooking | null> {
+    const result = await pool.query<CreatedBooking>(
+        `
+        SELECT
+            booking_id,
+            customer_id,
+            professional_id,
+            service_id,
+            service_name,
+            service_duration_minutes,
+            service_price,
+            start_time,
+            end_time,
+            status,
+            created_at
+        FROM bookings
+        WHERE booking_id = $1
+        `,
+        [bookingId],
+    );
+
+    return result.rows[0] ?? null;
+}

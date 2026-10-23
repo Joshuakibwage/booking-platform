@@ -99,6 +99,43 @@ The frontend communicates with the Express API. The API and background worker us
 
 The frontend, API, and worker run as separate deployed services. Shared validation schemas and types help keep contracts consistent across the frontend and backend.
 
+
+## API Endpoints
+
+The Express API currently supports booking creation, cancellation, availability lookup, and booking lists.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Check API health |
+| `GET` | `/health/db` | Check database connectivity |
+| `GET` | `/professionals/:professionalId/availability` | Retrieve availability for a professional on a specified date and service |
+| `POST` | `/bookings` | Create a booking |
+| `PATCH` | `/bookings/:bookingId/cancel` | Cancel a confirmed booking |
+| `GET` | `/customers/:customerId/bookings` | List a customer's bookings |
+| `GET` | `/professionals/:professionalId/bookings` | List a professional's bookings |
+
+### Cancel a Booking
+
+**Request**
+
+`PATCH /bookings/:bookingId/cancel`
+
+Replace `:bookingId` with the booking's UUID. No request body is required.
+
+**Responses**
+
+| Status | Meaning |
+|---|---|
+| `200 OK` | Booking cancelled successfully; returns the updated booking |
+| `400 Bad Request` | Invalid booking ID |
+| `404 Not Found` | Booking does not exist |
+| `409 Conflict` | Booking is not in a cancellable state |
+
+The endpoint only cancels bookings currently marked as `confirmed`. Other booking statuses cannot be cancelled through this endpoint.
+
+**Security note:** Authentication and authorization are not yet implemented. Do not expose customer or professional booking operations as production-secure until access controls are in place.
+
+
 ## Local Development
 
 ### Prerequisites
