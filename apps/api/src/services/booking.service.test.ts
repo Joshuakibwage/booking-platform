@@ -5,6 +5,7 @@ import {
     cancelBookingById,
     getBookings,
     prepareBooking,
+    rescheduleBookingById,
 } from "./booking.service.js";
 
 const {
@@ -14,6 +15,9 @@ const {
     findBookingsMock,
     cancelBookingMock,
     findBookingByIdMock,
+    rescheduleBookingMock,
+    clientQueryMock,
+    poolConnectMock,
 } = vi.hoisted(() => ({
     customerExistsMock: vi.fn(),
     findActiveServiceMock: vi.fn(),
@@ -21,6 +25,9 @@ const {
     findBookingsMock: vi.fn(),
     cancelBookingMock: vi.fn(),
     findBookingByIdMock: vi.fn(),
+    rescheduleBookingMock: vi.fn(),
+    clientQueryMock: vi.fn(),
+    poolConnectMock: vi.fn(),
 }));
 
 vi.mock("../repositories/customer.repository.js", () => ({
@@ -35,11 +42,19 @@ vi.mock("./availability.service.js", () => ({
     isWithinAvailability: isWithinAvailabilityMock,
 }));
 
+
 vi.mock("../repositories/booking.repository.js", () => ({
     findBookings: findBookingsMock,
     insertBooking: vi.fn(),
     cancelBooking: cancelBookingMock,
     findBookingById: findBookingByIdMock,
+    rescheduleBooking: rescheduleBookingMock,
+}));
+
+vi.mock("../db.js", () => ({
+    default: {
+        connect: poolConnectMock,
+    },
 }));
 
 
@@ -263,4 +278,182 @@ describe("cancelBookingById", () => {
         expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
         expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
     });
+});
+
+
+describe("rescheduleBookingById", () => {
+    const newStartTime = "2026-11-02T10:00:00+03:00";
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        clientQueryMock.mockImplementation(async (sql: string) => {
+        if (sql.includes("SELECT time_zone")) {
+            return {
+                rows: [{ time_zone: "Africa/Nairobi" }],
+            };
+        }
+
+    return { rows: [] };
+});
+
+        poolConnectMock.mockResolvedValue({
+            query: clientQueryMock,
+            release: vi.fn(),
+        });
+
+        findBookingByIdMock.mockResolvedValue(existingBooking);
+        isWithinAvailabilityMock.mockResolvedValue(true);
+        rescheduleBookingMock.mockResolvedValue({
+            ...existingBooking,
+            start_time: new Date("2026-11-02T07:00:00.000Z"),
+            end_time: new Date("2026-11-02T07:30:00.000Z"),
+        });
+    });
+
+    it("reschedules a confirmed booking successfully", async () => {
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            booking: {
+                ...existingBooking,
+                start_time: new Date("2026-11-02T07:00:00.000Z"),
+                end_time: new Date("2026-11-02T07:30:00.000Z"),
+            },
+        });
+
+        expect(findBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            expect.anything(),
+        );
+
+        expect(isWithinAvailabilityMock).toHaveBeenCalledWith(
+            existingBooking.professional_id,
+            "Africa/Nairobi",
+            new Date("2026-11-02T07:00:00.000Z"),
+            new Date("2026-11-02T07:30:00.000Z"),
+            expect.anything(),
+        );
+
+        expect(rescheduleBookingMock).toHaveBeenCalledWith(
+            bookingId,
+            new Date("2026-11-02T07:00:00.000Z"),
+            expect.anything(),
+        );
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
+    });
+
+    
+    it("returns booking_not_found when the booking does not exist", async () => {
+        findBookingByIdMock.mockResolvedValue(null);
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_found",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
+        expect(rescheduleBookingMock).not.toHaveBeenCalled();
+    });
+    
+    
+    it("rejects a booking that is no longer confirmed", async () => {
+        findBookingByIdMock.mockResolvedValue({
+            ...existingBooking,
+            status: "cancelled",
+        });
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_reschedulable",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
+        expect(rescheduleBookingMock).not.toHaveBeenCalled();
+    });
+
+    
+    it("rejects a new time outside the professional's availability", async () => {
+        isWithinAvailabilityMock.mockResolvedValue(false);
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "outside_availability",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(rescheduleBookingMock).not.toHaveBeenCalled();
+    });
+
+    it("returns slot_unavailable when the requested slot is occupied", async () => {
+        rescheduleBookingMock.mockRejectedValue({
+            code: "23P01",
+        });
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "slot_unavailable",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(rescheduleBookingMock).toHaveBeenCalled();
+    });
+
+    
+    it("returns booking_not_reschedulable when the update affects no booking", async () => {
+        rescheduleBookingMock.mockResolvedValue(null);
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_reschedulable",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(rescheduleBookingMock).toHaveBeenCalled();
+    });
+
+
 });

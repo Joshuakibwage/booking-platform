@@ -5,6 +5,7 @@ import {
     cancelBooking,
     findBookings,
     insertBooking,
+    rescheduleBooking,
 } from "./booking.repository.js";
 
 const { poolQueryMock } = vi.hoisted(() => ({
@@ -265,6 +266,63 @@ describe("cancelBooking", () => {
         });
 
         const result = await cancelBooking(createdBooking.booking_id);
+
+        expect(result).toBeNull();
+        expect(poolQueryMock).toHaveBeenCalledOnce();
+    });
+});
+
+
+describe("rescheduleBooking", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("reschedules a confirmed booking and returns the updated record", async () => {
+        const newStartTime = new Date("2026-11-02T09:00:00Z");
+        const rescheduledBooking = {
+            ...createdBooking,
+            start_time: newStartTime,
+            end_time: new Date("2026-11-02T09:30:00Z"),
+        };
+
+        poolQueryMock.mockResolvedValue({
+            rows: [rescheduledBooking],
+        });
+
+        const result = await rescheduleBooking(
+            createdBooking.booking_id,
+            newStartTime,
+        );
+
+        expect(result).toEqual(rescheduledBooking);
+        expect(poolQueryMock).toHaveBeenCalledOnce();
+
+        const [sql, values] = poolQueryMock.mock.calls[0] as [
+            string,
+            unknown[],
+        ];
+
+        expect(sql).toContain("UPDATE bookings");
+        expect(sql).toContain("start_time = $2");
+        expect(sql).toContain("service_duration_minutes");
+        expect(sql).toContain("status = 'confirmed'");
+        expect(sql).toContain("RETURNING");
+        expect(values).toEqual([
+            createdBooking.booking_id,
+            newStartTime,
+        ]);
+    });
+
+    it("returns null when no confirmed booking can be rescheduled", async () => {
+        poolQueryMock.mockResolvedValue({
+            rows: [],
+        });
+
+        const result = await rescheduleBooking(
+            createdBooking.booking_id,
+            new Date("2026-11-02T09:00:00Z"),
+        );
 
         expect(result).toBeNull();
         expect(poolQueryMock).toHaveBeenCalledOnce();
