@@ -4,3 +4,7 @@ export type CreateBookingInput = {
     serviceId: string;
     startTime: string;
 };
+
+export type RescheduleBookingInput = {
+    startTime: string;
+};

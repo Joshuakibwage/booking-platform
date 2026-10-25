@@ -1,11 +1,15 @@
 
 import type { NextFunction, Request, Response } from "express";
+
 import {
     cancelBookingById,
     createBooking as createBookingService,
+    rescheduleBookingById,
 } from "../services/booking.service.js";
+
 import { validateBookingInput } from "../validators/booking.validator.js";
 import { validateBookingId } from "../validators/cancel-booking.validator.js";
+import { validateRescheduleBookingInput } from "../validators/reschedule-booking.validator.js";
 
 export async function createBooking(
     req: Request,
@@ -76,6 +80,67 @@ export async function cancelBooking(
                 message: result.reason,
             });
             return;
+        }
+
+        res.status(200).json({
+            status: "success",
+            data: result.booking,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+
+export async function rescheduleBooking(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+): Promise<void> {
+    const bookingId = validateBookingId(req.params.bookingId);
+
+    if (!bookingId) {
+        res.status(400).json({
+            status: "error",
+            message: "Invalid booking ID",
+        });
+        return;
+    }
+
+    const input = validateRescheduleBookingInput(req.body);
+
+    if (!input) {
+        res.status(400).json({
+            status: "error",
+            message: "Invalid rescheduling request",
+        });
+        return;
+    }
+
+    try {
+        const result = await rescheduleBookingById(
+            bookingId,
+            input.startTime,
+        );
+
+        if (!result.ok) {
+            switch (result.reason) {
+                case "booking_not_found":
+                    res.status(404).json({
+                        status: "error",
+                        message: result.reason,
+                    });
+                    return;
+
+                case "booking_not_reschedulable":
+                case "outside_availability":
+                case "slot_unavailable":
+                    res.status(409).json({
+                        status: "error",
+                        message: result.reason,
+                    });
+                    return;
+            }
         }
 
         res.status(200).json({

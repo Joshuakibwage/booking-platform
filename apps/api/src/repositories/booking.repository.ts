@@ -222,10 +222,50 @@ export async function cancelBooking(
 }
 
 
+
+export async function rescheduleBooking(
+    bookingId: string,
+    startTime: Date,
+    client?: PoolClient,
+): Promise<CreatedBooking | null> {
+    const db = client ?? pool;
+
+    const result = await db.query<CreatedBooking>(
+        `
+        UPDATE bookings
+        SET
+            start_time = $2,
+            end_time = $2 + (service_duration_minutes * INTERVAL '1 minute')
+        WHERE booking_id = $1
+          AND status = 'confirmed'
+        RETURNING
+            booking_id,
+            customer_id,
+            professional_id,
+            service_id,
+            service_name,
+            service_duration_minutes,
+            service_price,
+            start_time,
+            end_time,
+            status,
+            created_at
+        `,
+        [bookingId, startTime],
+    );
+
+    return result.rows[0] ?? null;
+}
+
+
+
 export async function findBookingById(
     bookingId: string,
+    client?: PoolClient,
 ): Promise<CreatedBooking | null> {
-    const result = await pool.query<CreatedBooking>(
+    const db = client ?? pool;
+
+    const result = await db.query<CreatedBooking>(
         `
         SELECT
             booking_id,
@@ -241,6 +281,7 @@ export async function findBookingById(
             created_at
         FROM bookings
         WHERE booking_id = $1
+        FOR UPDATE
         `,
         [bookingId],
     );

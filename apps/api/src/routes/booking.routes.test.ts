@@ -5,14 +5,17 @@ import request from "supertest";
 const {
     createBookingMock,
     cancelBookingByIdMock,
+    rescheduleBookingByIdMock,
 } = vi.hoisted(() => ({
     createBookingMock: vi.fn(),
     cancelBookingByIdMock: vi.fn(),
+    rescheduleBookingByIdMock: vi.fn(),
 }));
 
 vi.mock("../services/booking.service.js", () => ({
     createBooking: createBookingMock,
     cancelBookingById: cancelBookingByIdMock,
+    rescheduleBookingById: rescheduleBookingByIdMock,
 }));
 
 import app from "../app.js";
@@ -220,5 +223,179 @@ describe("PATCH /bookings/:bookingId/cancel", () => {
         });
 
         expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+    });
+});
+
+
+
+describe("PATCH /bookings/:bookingId/reschedule", () => {
+    const bookingId = "9ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+    beforeEach(() => {
+        rescheduleBookingByIdMock.mockReset();
+    });
+
+    it("returns 400 when the booking ID is invalid", async () => {
+        const response = await request(app)
+            .patch("/bookings/not-a-uuid/reschedule")
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Invalid booking ID",
+        });
+
+        expect(rescheduleBookingByIdMock).not.toHaveBeenCalled();
+    });
+
+    
+    it("returns 400 when the rescheduling request body is invalid", async () => {
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "not-a-valid-date",
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Invalid rescheduling request",
+        });
+
+        expect(rescheduleBookingByIdMock).not.toHaveBeenCalled();
+    });
+    
+    it("reschedules a booking and returns 200", async () => {
+        const booking = {
+            booking_id: bookingId,
+            start_time: new Date("2026-11-02T07:00:00.000Z"),
+            end_time: new Date("2026-11-02T07:30:00.000Z"),
+            status: "confirmed",
+        };
+
+        rescheduleBookingByIdMock.mockResolvedValue({
+            ok: true,
+            booking,
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            status: "success",
+            data: {
+                ...booking,
+                start_time: "2026-11-02T07:00:00.000Z",
+                end_time: "2026-11-02T07:30:00.000Z",
+            },
+        });
+
+        expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            "2026-11-02T10:00:00+03:00",
+        );
+    });
+
+    it("returns 404 when the booking does not exist", async () => {
+        rescheduleBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "booking_not_found",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(404);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "booking_not_found",
+        });
+
+        expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            "2026-11-02T10:00:00+03:00",
+        );
+    });
+
+    it("returns 409 when the booking cannot be rescheduled", async () => {
+        rescheduleBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "booking_not_reschedulable",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(409);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "booking_not_reschedulable",
+        });
+
+        expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            "2026-11-02T10:00:00+03:00",
+        );
+    });
+
+    it("returns 409 when the new time is outside availability", async () => {
+        rescheduleBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "outside_availability",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(409);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "outside_availability",
+        });
+
+        expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            "2026-11-02T10:00:00+03:00",
+        );
+    });
+
+    it("returns 409 when the requested slot is unavailable", async () => {
+        rescheduleBookingByIdMock.mockResolvedValue({
+            ok: false,
+            reason: "slot_unavailable",
+        });
+
+        const response = await request(app)
+            .patch(`/bookings/${bookingId}/reschedule`)
+            .send({
+                startTime: "2026-11-02T10:00:00+03:00",
+            });
+
+        expect(response.status).toBe(409);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "slot_unavailable",
+        });
+
+        expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            "2026-11-02T10:00:00+03:00",
+        );
     });
 });

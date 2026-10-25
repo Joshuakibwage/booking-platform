@@ -11,6 +11,7 @@ import {
     findBookingById,
     findBookings,
     insertBooking,
+    rescheduleBooking,
     type CreatedBooking,
     type FindBookingsInput,
 } from "../repositories/booking.repository.js";
@@ -67,6 +68,20 @@ export type CreateBookingResult =
           reason:
               | "customer_not_found"
               | "service_not_found"
+              | "outside_availability"
+              | "slot_unavailable";
+      };
+
+export type RescheduleBookingResult =
+    | {
+          ok: true;
+          booking: CreatedBooking;
+      }
+    | {
+          ok: false;
+          reason:
+              | "booking_not_found"
+              | "booking_not_reschedulable"
               | "outside_availability"
               | "slot_unavailable";
       };
@@ -236,4 +251,130 @@ export async function cancelBookingById(
         ok: false,
         reason: "booking_not_cancellable",
     };
+}
+
+
+
+export async function rescheduleBookingById(
+    bookingId: string,
+    newStartTime: string,
+): Promise<RescheduleBookingResult> {
+    const client = await pool.connect();
+    let transactionStarted = false;
+
+    try {
+        await client.query("BEGIN");
+        transactionStarted = true;
+
+        const existingBooking = await findBookingById(bookingId, client);
+
+        if (!existingBooking) {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return {
+                ok: false,
+                reason: "booking_not_found",
+            };
+        }
+
+        if (existingBooking.status !== "confirmed") {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return {
+                ok: false,
+                reason: "booking_not_reschedulable",
+            };
+        }
+
+        const startTime = new Date(newStartTime);
+        const endTime = new Date(
+            startTime.getTime() +
+                existingBooking.service_duration_minutes * 60_000,
+        );
+
+        // Retrieve the professional's time zone without requiring
+        // the service to still be active.
+        const profileResult = await client.query<{ time_zone: string }>(
+            `
+            SELECT time_zone
+            FROM professional_profiles
+            WHERE profile_id = $1
+            `,
+            [existingBooking.professional_id],
+        );
+
+        const profile = profileResult.rows[0];
+
+        if (!profile) {
+            throw new Error("Professional profile not found for booking");
+        }
+
+        const available = await isWithinAvailability(
+            existingBooking.professional_id,
+            profile.time_zone,
+            startTime,
+            endTime,
+            client,
+        );
+
+        if (!available) {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return {
+                ok: false,
+                reason: "outside_availability",
+            };
+        }
+
+        const booking = await rescheduleBooking(
+            bookingId,
+            startTime,
+            client,
+        );
+
+        if (!booking) {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return {
+                ok: false,
+                reason: "booking_not_reschedulable",
+            };
+        }
+
+        await client.query("COMMIT");
+        transactionStarted = false;
+
+        return {
+            ok: true,
+            booking,
+        };
+    } catch (error) {
+        if (transactionStarted) {
+            try {
+                await client.query("ROLLBACK");
+            } catch {
+                // Preserve the original error if rollback fails.
+            }
+        }
+
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "23P01"
+        ) {
+            return {
+                ok: false,
+                reason: "slot_unavailable",
+            };
+        }
+
+        throw error;
+    } finally {
+        client.release();
+    }
 }
