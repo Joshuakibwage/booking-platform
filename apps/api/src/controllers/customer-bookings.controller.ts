@@ -10,10 +10,9 @@ export async function getCustomerBookings(
 ): Promise<void> {
     const input = validateBookingsListInput(
         "customer",
-        req.params.customerId,
+        req.session.user!.userId,
         req.query,
     );
-
     if (!input) {
         res.status(400).json({
             status: "error",

@@ -115,6 +115,17 @@ CREATE TABLE public.services (
 
 
 --
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_sessions (
+    sid character varying NOT NULL,
+    sess json NOT NULL,
+    expire timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -216,6 +227,14 @@ ALTER TABLE ONLY public.services
 
 
 --
+-- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (sid);
+
+
+--
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -237,6 +256,13 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.weekly_availability
     ADD CONSTRAINT weekly_availability_pkey PRIMARY KEY (availability_id);
+
+
+--
+-- Name: user_sessions_expire_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX user_sessions_expire_idx ON public.user_sessions USING btree (expire);
 
 
 --
@@ -312,4 +338,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261020071829'),
     ('20261020083136'),
     ('20261020094503'),
-    ('20261020113213');
+    ('20261020113213'),
+    ('20261026074201');

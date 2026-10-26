@@ -36,6 +36,7 @@ jobs:
         run: pnpm --filter api test
         env:
           DEV_DATABASE_URL: postgres://test:test@localhost:5432/test
+          SESSION_SECRET: test-only-secret-for-ci
 
       - name: Check API TypeScript
         run: pnpm --filter api typecheck
