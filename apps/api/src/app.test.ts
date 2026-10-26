@@ -5,14 +5,19 @@ import express from "express";
 import app from "./app.js";
 import errorHandler from "./error-handler.js";
 
-const { queryMock } = vi.hoisted(() => ({
+const { queryMock, registerUserMock } = vi.hoisted(() => ({
     queryMock: vi.fn(),
+    registerUserMock: vi.fn(),
 }));
 
 vi.mock("./db.js", () => ({
     default: {
         query: queryMock,
     },
+}));
+
+vi.mock("./services/auth.service.js", () => ({
+    registerUser: registerUserMock,
 }));
 
 const errorTestApp = express();
@@ -85,6 +90,49 @@ describe("Error handling", () => {
         expect(response.body).toEqual({
             status: "error",
             message: "Internal Server Error",
+        });
+    });
+});
+
+describe("POST /auth/register", () => {
+    beforeEach(() => {
+        registerUserMock.mockReset();
+    });
+
+    it("should return 400 for invalid registration input", async () => {
+        const response = await request(app)
+            .post("/auth/register")
+            .send({
+                email: "not-an-email",
+                password: "short",
+                displayName: "",
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Invalid registration request",
+        });
+        expect(registerUserMock).not.toHaveBeenCalled();
+    });
+
+    it("should return 409 when the email is already registered", async () => {
+        registerUserMock.mockRejectedValueOnce({
+            code: "23505",
+        });
+
+        const response = await request(app)
+            .post("/auth/register")
+            .send({
+                email: "joe@example.com",
+                password: "secure-password-123",
+                displayName: "Joe Kibwage",
+            });
+
+        expect(response.status).toBe(409);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Email address is already registered",
         });
     });
 });

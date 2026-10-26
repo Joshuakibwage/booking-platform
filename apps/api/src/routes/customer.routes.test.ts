@@ -1,6 +1,8 @@
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
+import customerRouter from "./customer.routes.js";
 
 const { customerExistsMock, getBookingsMock } = vi.hoisted(() => ({
     customerExistsMock: vi.fn(),
@@ -16,44 +18,34 @@ vi.mock("../services/booking.service.js", () => ({
     createBooking: vi.fn(),
 }));
 
-import app from "../app.js";
-
 const customerId = "550e8400-e29b-41d4-a716-446655440000";
 
-describe("GET /customers/:customerId/bookings", () => {
+const app = express();
+
+app.use(express.json());
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+    req.session = {
+        user: {
+            userId: customerId,
+        },
+    } as Request["session"];
+
+    next();
+});
+
+app.use("/customers", customerRouter);
+
+describe("GET /customers/bookings", () => {
     beforeEach(() => {
         customerExistsMock.mockReset();
         getBookingsMock.mockReset();
     });
 
-    it("rejects an invalid customer ID with 400", async () => {
-        const response = await request(app)
-            .get("/customers/invalid/bookings");
-
-        expect(response.status).toBe(400);
-        expect(response.body).toEqual({
-            status: "error",
-            message: "Invalid bookings list request",
-        });
-
-        expect(customerExistsMock).not.toHaveBeenCalled();
-        expect(getBookingsMock).not.toHaveBeenCalled();
-    });
-
-    it("returns 400 for invalid query parameters", async () => {
-        const response = await request(app)
-            .get(`/customers/${customerId}/bookings?page=0`);
-
-        expect(response.status).toBe(400);
-        expect(customerExistsMock).not.toHaveBeenCalled();
-        expect(getBookingsMock).not.toHaveBeenCalled();
-    });
-
-    it("returns 404 when the customer does not exist", async () => {
+    it("returns 404 when the authenticated customer does not exist", async () => {
         customerExistsMock.mockResolvedValue(false);
 
-        const response = await request(app)
-            .get(`/customers/${customerId}/bookings`);
+        const response = await request(app).get("/customers/bookings");
 
         expect(response.status).toBe(404);
         expect(response.body).toEqual({
@@ -61,6 +53,16 @@ describe("GET /customers/:customerId/bookings", () => {
             message: "customer_not_found",
         });
 
+        expect(customerExistsMock).toHaveBeenCalledWith(customerId);
+        expect(getBookingsMock).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for invalid query parameters", async () => {
+        const response = await request(app)
+            .get("/customers/bookings?page=0");
+
+        expect(response.status).toBe(400);
+        expect(customerExistsMock).not.toHaveBeenCalled();
         expect(getBookingsMock).not.toHaveBeenCalled();
     });
 
@@ -83,8 +85,7 @@ describe("GET /customers/:customerId/bookings", () => {
         customerExistsMock.mockResolvedValue(true);
         getBookingsMock.mockResolvedValue(result);
 
-        const response = await request(app)
-            .get(`/customers/${customerId}/bookings`);
+        const response = await request(app).get("/customers/bookings");
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual({
@@ -92,6 +93,7 @@ describe("GET /customers/:customerId/bookings", () => {
             data: result,
         });
 
+        expect(customerExistsMock).toHaveBeenCalledWith(customerId);
         expect(getBookingsMock).toHaveBeenCalledWith({
             owner: {
                 type: "customer",
@@ -115,7 +117,7 @@ describe("GET /customers/:customerId/bookings", () => {
         });
 
         const response = await request(app)
-            .get(`/customers/${customerId}/bookings`)
+            .get("/customers/bookings")
             .query({
                 status: "confirmed",
                 from: "2026-11-01",
