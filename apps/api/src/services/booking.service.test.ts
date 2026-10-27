@@ -42,7 +42,6 @@ vi.mock("./availability.service.js", () => ({
     isWithinAvailability: isWithinAvailabilityMock,
 }));
 
-
 vi.mock("../repositories/booking.repository.js", () => ({
     findBookings: findBookingsMock,
     insertBooking: vi.fn(),
@@ -56,7 +55,6 @@ vi.mock("../db.js", () => ({
         connect: poolConnectMock,
     },
 }));
-
 
 const input = {
     customerId: "550e8400-e29b-41d4-a716-446655440000",
@@ -75,7 +73,7 @@ const service = {
 
 describe("prepareBooking", () => {
     beforeEach(() => {
-        vi.clearAllMocks(),
+        vi.clearAllMocks();
         isWithinAvailabilityMock.mockResolvedValue(true);
     });
 
@@ -102,6 +100,27 @@ describe("prepareBooking", () => {
             ok: false,
             reason: "service_not_found",
         });
+
+        expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a booking when the service has been deactivated", async () => {
+        customerExistsMock.mockResolvedValue(true);
+        findActiveServiceMock.mockResolvedValue(null);
+
+        const result = await prepareBooking(input);
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "service_not_found",
+        });
+
+        expect(findActiveServiceMock).toHaveBeenCalledWith(
+            input.serviceId,
+            undefined,
+        );
+
+        expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
     });
 
     it("calculates the end time using the service duration", async () => {
@@ -139,7 +158,6 @@ describe("prepareBooking", () => {
         });
     });
 });
-
 
 describe("getBookings", () => {
     beforeEach(() => {
@@ -280,7 +298,6 @@ describe("cancelBookingById", () => {
     });
 });
 
-
 describe("rescheduleBookingById", () => {
     const newStartTime = "2026-11-02T10:00:00+03:00";
 
@@ -288,14 +305,14 @@ describe("rescheduleBookingById", () => {
         vi.clearAllMocks();
 
         clientQueryMock.mockImplementation(async (sql: string) => {
-        if (sql.includes("SELECT time_zone")) {
-            return {
-                rows: [{ time_zone: "Africa/Nairobi" }],
-            };
-        }
+            if (sql.includes("SELECT time_zone")) {
+                return {
+                    rows: [{ time_zone: "Africa/Nairobi" }],
+                };
+            }
 
-    return { rows: [] };
-});
+            return { rows: [] };
+        });
 
         poolConnectMock.mockResolvedValue({
             query: clientQueryMock,
@@ -349,7 +366,6 @@ describe("rescheduleBookingById", () => {
         expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
     });
 
-    
     it("returns booking_not_found when the booking does not exist", async () => {
         findBookingByIdMock.mockResolvedValue(null);
 
@@ -369,8 +385,7 @@ describe("rescheduleBookingById", () => {
         expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
         expect(rescheduleBookingMock).not.toHaveBeenCalled();
     });
-    
-    
+
     it("rejects a booking that is no longer confirmed", async () => {
         findBookingByIdMock.mockResolvedValue({
             ...existingBooking,
@@ -394,7 +409,6 @@ describe("rescheduleBookingById", () => {
         expect(rescheduleBookingMock).not.toHaveBeenCalled();
     });
 
-    
     it("rejects a new time outside the professional's availability", async () => {
         isWithinAvailabilityMock.mockResolvedValue(false);
 
@@ -435,7 +449,6 @@ describe("rescheduleBookingById", () => {
         expect(rescheduleBookingMock).toHaveBeenCalled();
     });
 
-    
     it("returns booking_not_reschedulable when the update affects no booking", async () => {
         rescheduleBookingMock.mockResolvedValue(null);
 
@@ -454,6 +467,4 @@ describe("rescheduleBookingById", () => {
 
         expect(rescheduleBookingMock).toHaveBeenCalled();
     });
-
-
 });
