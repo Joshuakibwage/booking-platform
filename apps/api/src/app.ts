@@ -21,6 +21,8 @@ import authRouter from "./routes/auth.routes.js";
 
 const app: Express = express();
 
+app.set("trust proxy", 1);
+
 const PgSessionStore = connectPgSimple(session);
 
 const sessionSecret = process.env.SESSION_SECRET;
