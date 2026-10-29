@@ -16,6 +16,8 @@ import {
     type FindBookingsInput,
 } from "../repositories/booking.repository.js";
 
+import { notifyBookingParticipants } from "./booking-notification.service.js";
+
 
 export type BookingPreparation =
     | {
@@ -173,10 +175,25 @@ export async function createBooking(
 
         await client.query("COMMIT");
 
+        try {
+            await notifyBookingParticipants(booking.booking_id, "confirmed");
+        } catch (error) {
+            // The booking is already committed. Notification failure must not
+            // turn a successful booking into a failed API response.
+            console.error("Failed to send booking confirmation notification", {
+                bookingId: booking.booking_id,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Unknown notification error",
+            });
+        }
+
         return {
             ok: true,
             booking,
         };
+
     } catch (error) {
        
         if (transactionStarted) {
@@ -226,12 +243,33 @@ export async function getBookings(
 
 
 
+
 export async function cancelBookingById(
     bookingId: string,
 ): Promise<CancelBookingResult> {
     const booking = await cancelBooking(bookingId);
 
     if (booking) {
+        try {
+            await notifyBookingParticipants(
+                booking.booking_id,
+                "cancelled",
+            );
+        } catch (error) {
+            // Cancellation succeeded. Notification failure must not
+            // turn it into a failed API response.
+            console.error(
+                "Failed to send booking cancellation notification",
+                {
+                    bookingId: booking.booking_id,
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Unknown notification error",
+                },
+            );
+        }
+
         return {
             ok: true,
             booking,
@@ -255,12 +293,15 @@ export async function cancelBookingById(
 
 
 
+
+
 export async function rescheduleBookingById(
     bookingId: string,
     newStartTime: string,
 ): Promise<RescheduleBookingResult> {
     const client = await pool.connect();
     let transactionStarted = false;
+    let rescheduledBooking: CreatedBooking | null = null;
 
     try {
         await client.query("BEGIN");
@@ -294,8 +335,6 @@ export async function rescheduleBookingById(
                 existingBooking.service_duration_minutes * 60_000,
         );
 
-        // Retrieve the professional's time zone without requiring
-        // the service to still be active.
         const profileResult = await client.query<{ time_zone: string }>(
             `
             SELECT time_zone
@@ -348,10 +387,7 @@ export async function rescheduleBookingById(
         await client.query("COMMIT");
         transactionStarted = false;
 
-        return {
-            ok: true,
-            booking,
-        };
+        rescheduledBooking = booking;
     } catch (error) {
         if (transactionStarted) {
             try {
@@ -377,4 +413,33 @@ export async function rescheduleBookingById(
     } finally {
         client.release();
     }
+
+    if (!rescheduledBooking) {
+        throw new Error("Rescheduled booking result is missing");
+    }
+
+    try {
+        await notifyBookingParticipants(
+            rescheduledBooking.booking_id,
+            "rescheduled",
+        );
+    } catch (error) {
+        // Rescheduling has already committed. Email failure must not
+        // turn a successful reschedule into a failed API response.
+        console.error(
+            "Failed to send booking rescheduling notification",
+            {
+                bookingId: rescheduledBooking.booking_id,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Unknown notification error",
+            },
+        );
+    }
+
+    return {
+        ok: true,
+        booking: rescheduledBooking,
+    };
 }

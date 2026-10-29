@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     cancelBookingById,
+    createBooking,
     getBookings,
     prepareBooking,
     rescheduleBookingById,
@@ -13,21 +14,25 @@ const {
     findActiveServiceMock,
     isWithinAvailabilityMock,
     findBookingsMock,
+    insertBookingMock,
     cancelBookingMock,
     findBookingByIdMock,
     rescheduleBookingMock,
     clientQueryMock,
     poolConnectMock,
+    notifyBookingParticipantsMock,
 } = vi.hoisted(() => ({
     customerExistsMock: vi.fn(),
     findActiveServiceMock: vi.fn(),
     isWithinAvailabilityMock: vi.fn(),
     findBookingsMock: vi.fn(),
+    insertBookingMock: vi.fn(),
     cancelBookingMock: vi.fn(),
     findBookingByIdMock: vi.fn(),
     rescheduleBookingMock: vi.fn(),
     clientQueryMock: vi.fn(),
     poolConnectMock: vi.fn(),
+    notifyBookingParticipantsMock: vi.fn(),
 }));
 
 vi.mock("../repositories/customer.repository.js", () => ({
@@ -44,7 +49,7 @@ vi.mock("./availability.service.js", () => ({
 
 vi.mock("../repositories/booking.repository.js", () => ({
     findBookings: findBookingsMock,
-    insertBooking: vi.fn(),
+    insertBooking: insertBookingMock,
     cancelBooking: cancelBookingMock,
     findBookingById: findBookingByIdMock,
     rescheduleBooking: rescheduleBookingMock,
@@ -54,6 +59,10 @@ vi.mock("../db.js", () => ({
     default: {
         connect: poolConnectMock,
     },
+}));
+
+vi.mock("./booking-notification.service.js", () => ({
+    notifyBookingParticipants: notifyBookingParticipantsMock,
 }));
 
 const input = {
@@ -70,6 +79,82 @@ const service = {
     price: "1500.00",
     time_zone: "Africa/Nairobi",
 };
+
+describe("createBooking", () => {
+    const createdBooking = {
+        booking_id: "9ba7b810-9dad-41d1-80b4-00c04fd430c8",
+        customer_id: input.customerId,
+        professional_id: service.professional_id,
+        service_id: service.service_id,
+        service_name: service.name,
+        service_duration_minutes: service.duration_minutes,
+        service_price: service.price,
+        start_time: new Date("2026-11-02T06:00:00.000Z"),
+        end_time: new Date("2026-11-02T06:30:00.000Z"),
+        status: "confirmed",
+        created_at: new Date("2026-10-29T09:00:00.000Z"),
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        customerExistsMock.mockResolvedValue(true);
+        findActiveServiceMock.mockResolvedValue(service);
+        isWithinAvailabilityMock.mockResolvedValue(true);
+        insertBookingMock.mockResolvedValue(createdBooking);
+        notifyBookingParticipantsMock.mockResolvedValue(undefined);
+
+        clientQueryMock.mockResolvedValue({ rows: [] });
+
+        poolConnectMock.mockResolvedValue({
+            query: clientQueryMock,
+            release: vi.fn(),
+        });
+    });
+
+    it("commits the booking before sending confirmation notifications", async () => {
+        clientQueryMock.mockImplementation(async (sql: string) => {
+            if (sql === "COMMIT") {
+                expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+            }
+
+            return { rows: [] };
+        });
+
+        const result = await createBooking(input);
+
+        expect(result).toEqual({
+            ok: true,
+            booking: createdBooking,
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            createdBooking.booking_id,
+            "confirmed",
+        );
+    });
+
+    it("returns the successful booking when confirmation notification fails", async () => {
+        notifyBookingParticipantsMock.mockRejectedValue(
+            new Error("One or more booking notification emails failed"),
+        );
+
+        const result = await createBooking(input);
+
+        expect(result).toEqual({
+            ok: true,
+            booking: createdBooking,
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
+        expect(clientQueryMock).not.toHaveBeenCalledWith("ROLLBACK");
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            createdBooking.booking_id,
+            "confirmed",
+        );
+    });
+});
 
 describe("prepareBooking", () => {
     beforeEach(() => {
@@ -264,6 +349,36 @@ describe("cancelBookingById", () => {
         });
 
         expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            bookingId,
+            "cancelled",
+        );
+        expect(findBookingByIdMock).not.toHaveBeenCalled();
+    });
+
+    it("returns the cancelled booking when notification delivery fails", async () => {
+        const cancelledBooking = {
+            ...existingBooking,
+            status: "cancelled",
+        };
+
+        cancelBookingMock.mockResolvedValue(cancelledBooking);
+        notifyBookingParticipantsMock.mockRejectedValue(
+            new Error("Email delivery failed"),
+        );
+
+        const result = await cancelBookingById(bookingId);
+
+        expect(result).toEqual({
+            ok: true,
+            booking: cancelledBooking,
+        });
+
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            bookingId,
+            "cancelled",
+        );
+
         expect(findBookingByIdMock).not.toHaveBeenCalled();
     });
 
@@ -280,6 +395,7 @@ describe("cancelBookingById", () => {
 
         expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
         expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
     });
 
     it("returns booking_not_cancellable when the booking cannot be cancelled", async () => {
@@ -295,11 +411,14 @@ describe("cancelBookingById", () => {
 
         expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
         expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
     });
 });
 
+
 describe("rescheduleBookingById", () => {
     const newStartTime = "2026-11-02T10:00:00+03:00";
+    const releaseMock = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -316,7 +435,7 @@ describe("rescheduleBookingById", () => {
 
         poolConnectMock.mockResolvedValue({
             query: clientQueryMock,
-            release: vi.fn(),
+            release: releaseMock,
         });
 
         findBookingByIdMock.mockResolvedValue(existingBooking);
@@ -364,6 +483,46 @@ describe("rescheduleBookingById", () => {
 
         expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
         expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
+
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            bookingId,
+            "rescheduled",
+        );
+
+        expect(releaseMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns the rescheduled booking when notification delivery fails", async () => {
+        const movedBooking = {
+            ...existingBooking,
+            start_time: new Date("2026-11-02T07:00:00.000Z"),
+            end_time: new Date("2026-11-02T07:30:00.000Z"),
+        };
+
+        rescheduleBookingMock.mockResolvedValue(movedBooking);
+        notifyBookingParticipantsMock.mockRejectedValue(
+            new Error("Email delivery failed"),
+        );
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            booking: movedBooking,
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
+        expect(clientQueryMock).not.toHaveBeenCalledWith("ROLLBACK");
+
+        expect(releaseMock).toHaveBeenCalledOnce();
+
+        expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
+            bookingId,
+            "rescheduled",
+        );
     });
 
     it("returns booking_not_found when the booking does not exist", async () => {
@@ -384,6 +543,9 @@ describe("rescheduleBookingById", () => {
 
         expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
         expect(rescheduleBookingMock).not.toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
     });
 
     it("rejects a booking that is no longer confirmed", async () => {
@@ -407,6 +569,9 @@ describe("rescheduleBookingById", () => {
 
         expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
         expect(rescheduleBookingMock).not.toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
     });
 
     it("rejects a new time outside the professional's availability", async () => {
@@ -426,6 +591,9 @@ describe("rescheduleBookingById", () => {
         expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
 
         expect(rescheduleBookingMock).not.toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
     });
 
     it("returns slot_unavailable when the requested slot is occupied", async () => {
@@ -447,6 +615,9 @@ describe("rescheduleBookingById", () => {
         expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
 
         expect(rescheduleBookingMock).toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
     });
 
     it("returns booking_not_reschedulable when the update affects no booking", async () => {
@@ -466,5 +637,8 @@ describe("rescheduleBookingById", () => {
         expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
 
         expect(rescheduleBookingMock).toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
     });
 });
