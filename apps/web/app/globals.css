@@ -156,3 +156,18 @@
   h2 { font-size: 1.375rem; line-height: 1.75rem; letter-spacing: -0.015em; }
   h3 { font-size: 1rem; line-height: 1.5rem; letter-spacing: -0.005em; }
 }
+
+
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-transition,
+  html.theme-transition *:not([data-theme-toggle], [data-theme-toggle] *),
+  html.theme-transition *:not([data-theme-toggle], [data-theme-toggle] *)::before,
+  html.theme-transition *:not([data-theme-toggle], [data-theme-toggle] *)::after {
+    transition:
+      background-color 500ms ease-in-out,
+      color 500ms ease-in-out,
+      border-color 500ms ease-in-out,
+      fill 500ms ease-in-out,
+      stroke 500ms ease-in-out !important;
+  }
+}

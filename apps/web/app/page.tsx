@@ -1,17 +1,17 @@
-import { ThemeToggle } from "@/components/shared/theme-toggle";
+// import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { SiteHeader } from "@/components/layout/site-header";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <h1 className="text-2xl font-semibold">
-        Theme animation preview
-      </h1>
+    <>
+            <SiteHeader />
+            <main className="flex-1 h-screen">
+                {/* Temporary homepage content */}
+            </main>
+            <div className="h-screen">
 
-      <p className="text-muted-foreground">
-        Click the button to switch themes.
-      </p>
+            </div>
+        </>
 
-      <ThemeToggle />
-    </main>
   );
 }
