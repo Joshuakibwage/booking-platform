@@ -136,3 +136,44 @@ describe("POST /auth/register", () => {
         });
     });
 });
+
+describe("CORS", () => {
+    it("should allow requests from the local frontend", async () => {
+        const response = await request(app)
+            .get("/health")
+            .set("Origin", "http://localhost:3000");
+
+        expect(response.headers["access-control-allow-origin"]).toBe(
+            "http://localhost:3000",
+        );
+        expect(response.headers["access-control-allow-credentials"]).toBe(
+            "true",
+        );
+    });
+
+    it("should not allow an unapproved origin", async () => {
+        const response = await request(app)
+            .get("/health")
+            .set("Origin", "https://malicious.example");
+
+        expect(
+            response.headers["access-control-allow-origin"],
+        ).toBeUndefined();
+    });
+
+    it("should handle preflight requests from the local frontend", async () => {
+        const response = await request(app)
+            .options("/auth/login")
+            .set("Origin", "http://localhost:3000")
+            .set("Access-Control-Request-Method", "POST")
+            .set("Access-Control-Request-Headers", "content-type");
+
+        expect(response.status).toBe(204);
+        expect(response.headers["access-control-allow-origin"]).toBe(
+            "http://localhost:3000",
+        );
+        expect(response.headers["access-control-allow-credentials"]).toBe(
+            "true",
+        );
+    });
+});
