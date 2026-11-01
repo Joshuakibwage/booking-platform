@@ -85,4 +85,33 @@ export async function findUserByEmail(email: string): Promise<{
         displayName: user.display_name,
         passwordHash: user.password_hash,
     };
+};
+
+export async function findUserById(
+    userId: string,
+): Promise<RegisteredUser | null> {
+    const result = await pool.query<{
+        user_id: string;
+        email: string;
+        display_name: string;
+    }>(
+        `
+        SELECT user_id, email, display_name
+        FROM users
+        WHERE user_id = $1
+        `,
+        [userId],
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+        return null;
+    }
+
+    return {
+        userId: user.user_id,
+        email: user.email,
+        displayName: user.display_name,
+    };
 }

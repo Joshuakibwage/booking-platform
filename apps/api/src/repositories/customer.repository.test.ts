@@ -11,7 +11,10 @@ vi.mock("../db.js", () => ({
     },
 }));
 
-import { customerExists } from "./customer.repository.js";
+import {
+    customerExists,
+    findUserById,
+} from "./customer.repository.js";
 
 describe("customerExists", () => {
     beforeEach(() => {
@@ -44,5 +47,47 @@ describe("customerExists", () => {
         );
 
         expect(result).toBe(false);
+    });
+});
+
+
+describe("findUserById", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns the user when the ID exists", async () => {
+        queryMock.mockResolvedValueOnce({
+            rows: [
+                {
+                    user_id: "user-123",
+                    email: "joe@example.com",
+                    display_name: "Joe Kibwage",
+                },
+            ],
+        });
+
+        const result = await findUserById("user-123");
+
+        expect(result).toEqual({
+            userId: "user-123",
+            email: "joe@example.com",
+            displayName: "Joe Kibwage",
+        });
+
+        expect(queryMock).toHaveBeenCalledWith(
+            expect.stringContaining("WHERE user_id = $1"),
+            ["user-123"],
+        );
+    });
+
+    it("returns null when the user does not exist", async () => {
+        queryMock.mockResolvedValueOnce({
+            rows: [],
+        });
+
+        const result = await findUserById("deleted-user");
+
+        expect(result).toBeNull();
     });
 });

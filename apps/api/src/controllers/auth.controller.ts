@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
-import { registerUser } from "../services/auth.service.js";
 import { validateRegisterInput } from "../validators/register.validator.js";
-import { loginUser } from "../services/auth.service.js";
+import {
+    loginUser,
+    getAuthenticatedUser,
+    registerUser
+} from "../services/auth.service.js";
 import { validateLoginInput } from "../validators/login.validator.js";
 
 
@@ -137,7 +140,7 @@ export function logout(
         res.clearCookie("connect.sid", {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         });
 
         res.status(200).json({
@@ -145,4 +148,53 @@ export function logout(
             message: "Logged out successfully",
         });
     });
+};
+
+export async function me(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+): Promise<void> {
+    const userId = req.session.user?.userId;
+
+    if (!userId) {
+        res.status(401).json({
+            status: "error",
+            message: "Authentication required",
+        });
+        return;
+    }
+
+    try {
+        const user = await getAuthenticatedUser(userId);
+
+        if (!user) {
+            req.session.destroy((error) => {
+                if (error) {
+                    next(error);
+                    return;
+                }
+
+                res.clearCookie("connect.sid", {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+                });
+
+                res.status(401).json({
+                    status: "error",
+                    message: "Authentication required",
+                });
+            });
+
+            return;
+        }
+
+        res.status(200).json({
+            status: "success",
+            data: user,
+        });
+    } catch (error) {
+        next(error);
+    }
 }

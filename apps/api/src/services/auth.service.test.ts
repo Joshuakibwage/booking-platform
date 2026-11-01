@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findUserByEmailMock, hashMock, verifyMock, createUserMock } =
-    vi.hoisted(() => ({
-        findUserByEmailMock: vi.fn(),
-        hashMock: vi.fn(),
-        verifyMock: vi.fn(),
-        createUserMock: vi.fn(),
-    }));
+const {
+    findUserByEmailMock,
+    findUserByIdMock,
+    hashMock,
+    verifyMock,
+    createUserMock,
+} = vi.hoisted(() => ({
+    findUserByEmailMock: vi.fn(),
+    findUserByIdMock: vi.fn(),
+    hashMock: vi.fn(),
+    verifyMock: vi.fn(),
+    createUserMock: vi.fn(),
+}));
 
 vi.mock("argon2", () => ({
     default: {
@@ -18,9 +24,10 @@ vi.mock("argon2", () => ({
 vi.mock("../repositories/customer.repository.js", () => ({
     createUser: createUserMock,
     findUserByEmail: findUserByEmailMock,
+    findUserById: findUserByIdMock,
 }));
 
-import { loginUser } from "./auth.service.js";
+import { getAuthenticatedUser, loginUser } from "./auth.service.js";
 
 describe("loginUser", () => {
     beforeEach(() => {
@@ -84,6 +91,38 @@ describe("loginUser", () => {
             "wrong-password",
         );
 
+        expect(result).toBeNull();
+    });
+});
+
+
+describe("getAuthenticatedUser", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("should return the authenticated user's public details", async () => {
+        const user = {
+            userId: "user-123",
+            email: "joe@example.com",
+            displayName: "Joe Kibwage",
+        };
+
+        findUserByIdMock.mockResolvedValueOnce(user);
+
+        const result = await getAuthenticatedUser("user-123");
+
+        expect(findUserByIdMock).toHaveBeenCalledWith("user-123");
+        expect(result).toEqual(user);
+        expect(result).not.toHaveProperty("passwordHash");
+    });
+
+    it("should return null when the user does not exist", async () => {
+        findUserByIdMock.mockResolvedValueOnce(null);
+
+        const result = await getAuthenticatedUser("deleted-user");
+
+        expect(findUserByIdMock).toHaveBeenCalledWith("deleted-user");
         expect(result).toBeNull();
     });
 });

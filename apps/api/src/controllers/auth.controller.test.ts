@@ -1,15 +1,22 @@
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
-import { register, login, logout } from "./auth.controller.js";
+import { register, login, logout, me } from "./auth.controller.js";
 
-const { registerUserMock, loginUserMock } = vi.hoisted(() => ({
+const {
+    registerUserMock,
+    loginUserMock,
+    getAuthenticatedUserMock,
+} = vi.hoisted(() => ({
     registerUserMock: vi.fn(),
     loginUserMock: vi.fn(),
+    getAuthenticatedUserMock: vi.fn(),
 }));
 
 vi.mock("../services/auth.service.js", () => ({
     registerUser: registerUserMock,
     loginUser: loginUserMock,
+    getAuthenticatedUser: getAuthenticatedUserMock,
 }));
 
 describe("Authentication controllers", () => {
@@ -177,7 +184,7 @@ describe("Authentication controllers", () => {
                 {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === "production",
-                    sameSite: "lax",
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
                 },
             );
 
@@ -202,6 +209,76 @@ describe("Authentication controllers", () => {
             expect(next).toHaveBeenCalledWith(sessionError);
             expect(statusMock).not.toHaveBeenCalled();
             expect(jsonMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("me", () => {
+        it("should return the authenticated user", async () => {
+            const user = {
+                userId: "user-123",
+                email: "joe@example.com",
+                displayName: "Joe Kibwage",
+            };
+
+            req.session.user = {
+                userId: "user-123",
+            };
+
+            getAuthenticatedUserMock.mockResolvedValueOnce(user);
+
+            await me(req, res, next);
+
+            expect(getAuthenticatedUserMock).toHaveBeenCalledWith("user-123");
+
+            expect(statusMock).toHaveBeenCalledWith(200);
+            expect(jsonMock).toHaveBeenCalledWith({
+                status: "success",
+                data: user,
+            });
+
+            expect(next).not.toHaveBeenCalled();
+        });
+
+        it("should return 401 when no authenticated session exists", async () => {
+            delete req.session.user;
+
+            await me(req, res, next);
+
+            expect(getAuthenticatedUserMock).not.toHaveBeenCalled();
+
+            expect(statusMock).toHaveBeenCalledWith(401);
+            expect(jsonMock).toHaveBeenCalledWith({
+                status: "error",
+                message: "Authentication required",
+            });
+        });
+
+        it("should destroy the session when the authenticated user no longer exists", async () => {
+            req.session.user = {
+                userId: "deleted-user",
+            };
+
+            getAuthenticatedUserMock.mockResolvedValueOnce(null);
+
+            await me(req, res, next);
+
+            expect(getAuthenticatedUserMock).toHaveBeenCalledWith("deleted-user");
+            expect(destroyMock).toHaveBeenCalledOnce();
+
+            expect(res.clearCookie).toHaveBeenCalledWith(
+                "connect.sid",
+                {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+                },
+            );
+
+            expect(statusMock).toHaveBeenCalledWith(401);
+            expect(jsonMock).toHaveBeenCalledWith({
+                status: "error",
+                message: "Authentication required",
+            });
         });
     });
 });

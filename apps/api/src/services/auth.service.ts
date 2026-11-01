@@ -1,5 +1,9 @@
 import argon2 from "argon2";
-import { createUser, findUserByEmail } from "../repositories/customer.repository.js";
+import {
+    createUser,
+    findUserByEmail,
+    findUserById,
+} from "../repositories/customer.repository.js";
 import type { RegisteredUser } from "../types/auth.types.js";
 
 
@@ -39,4 +43,10 @@ export async function loginUser(
         email: user.email,
         displayName: user.displayName,
     };
+};
+
+export async function getAuthenticatedUser(
+    userId: string,
+): Promise<RegisteredUser | null> {
+    return findUserById(userId);
 }
