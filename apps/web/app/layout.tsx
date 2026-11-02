@@ -17,8 +17,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Your Booking App",
-  description: "Book and manage your trips.",
+  title: {
+    default: "Schedulyn",
+    template: "%s | Schedulyn",
+  },
+  description:
+    "Discover professionals, book services, and manage your appointments with Schedulyn.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
