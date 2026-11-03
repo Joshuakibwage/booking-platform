@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Instrument_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { QueryProvider } from "@/providers/query-provider";
+
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -33,8 +35,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="system" 
+          enableSystem 
+          disableTransitionOnChange
+        >
+          <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>
     </html>
