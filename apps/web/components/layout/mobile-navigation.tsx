@@ -3,28 +3,59 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, type Variants } from "motion/react";
-import { Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { navigationLinks } from "@/constants/navigation";
 
+import type { AuthUser } from "@/types/auth";
+
+type MobileNavigationProps = {
+  onAuthOpen: (mode: "login" | "register") => void;
+  currentUser: AuthUser | null | undefined;
+  isUserLoading: boolean;
+  isLoggingOut: boolean;
+  logoutError: string | null;
+  onLogout: () => Promise<boolean>;
+};
+
 const ease = [0.22, 1, 0.36, 1] as const;
 
 const panel: Variants = {
-  hidden: { opacity: 0, y: -8, transition: { duration: 0.12, ease } },
+  hidden: {
+    opacity: 0,
+    y: -8,
+    transition: { duration: 0.12, ease },
+  },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.18, ease, staggerChildren: 0.035, delayChildren: 0.04 },
+    transition: {
+      duration: 0.18,
+      ease,
+      staggerChildren: 0.035,
+      delayChildren: 0.04,
+    },
   },
 };
 
 const item: Variants = {
   hidden: { opacity: 0, y: -4 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.18, ease },
+  },
 };
 
-export function MobileNavigation() {
+export function MobileNavigation({
+  onAuthOpen,
+  currentUser,
+  isUserLoading,
+  isLoggingOut,
+  logoutError,
+  onLogout,
+}: MobileNavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,11 +84,20 @@ export function MobileNavigation() {
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("pointerdown", handlePointerDown);
+
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [isOpen]);
+
+  async function handleLogoutClick() {
+    const didLogout = await onLogout();
+
+    if (didLogout) {
+      setIsOpen(false);
+    }
+  }
 
   return (
     <div ref={containerRef} className="md:hidden">
@@ -118,20 +158,70 @@ export function MobileNavigation() {
               variants={item}
               className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-4"
             >
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className={buttonVariants({ variant: "outline" })}
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setIsOpen(false)}
-                className={buttonVariants()}
-              >
-                Get started
-              </Link>
+              {isUserLoading || currentUser === undefined ? (
+                <>
+                  <div className="h-10 animate-pulse rounded-md bg-muted" />
+                  <div className="h-10 animate-pulse rounded-md bg-muted" />
+                </>
+              ) : currentUser ? (
+                <>
+                  <div className="col-span-2 rounded-md bg-muted/50 px-3 py-3">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {currentUser.displayName}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {currentUser.email}
+                    </p>
+                  </div>
+
+                  {logoutError && (
+                    <p
+                      role="alert"
+                      className="col-span-2 px-1 text-xs text-destructive"
+                    >
+                      {logoutError}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isLoggingOut}
+                    onClick={() => void handleLogoutClick()}
+                    className={`${buttonVariants({
+                      variant: "destructive",
+                    })} col-span-2`}
+                  >
+                    <LogOut size={16} className="mr-2" aria-hidden="true" />
+                    {isLoggingOut ? "Signing out..." : "Sign out"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onAuthOpen("login");
+                    }}
+                    className={buttonVariants({
+                      variant: "outline",
+                    })}
+                  >
+                    Sign in
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onAuthOpen("register");
+                    }}
+                    className={buttonVariants()}
+                  >
+                    Get started
+                  </button>
+                </>
+              )}
             </motion.div>
           </motion.nav>
         )}
