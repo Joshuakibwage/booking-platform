@@ -1,28 +1,34 @@
 import argon2 from "argon2";
+
 import {
     createUser,
     findUserByEmail,
     findUserById,
 } from "../repositories/customer.repository.js";
-import type { RegisteredUser } from "../types/auth.types.js";
 
-
+import type { CurrentUser } from "../types/auth.types.js";
 
 export async function registerUser(
     email: string,
     password: string,
     displayName: string,
-): Promise<RegisteredUser> {
+): Promise<CurrentUser> {
     const passwordHash = await argon2.hash(password);
 
-    return createUser(email, passwordHash, displayName);
-};
+    const user = await createUser(email, passwordHash, displayName);
+    const currentUser = await findUserById(user.userId);
 
+    if (!currentUser) {
+        throw new Error("Failed to retrieve newly created user");
+    }
+
+    return currentUser;
+}
 
 export async function loginUser(
     email: string,
     password: string,
-): Promise<RegisteredUser | null> {
+): Promise<CurrentUser | null> {
     const user = await findUserByEmail(email);
 
     if (!user) {
@@ -38,15 +44,11 @@ export async function loginUser(
         return null;
     }
 
-    return {
-        userId: user.userId,
-        email: user.email,
-        displayName: user.displayName,
-    };
-};
+    return findUserById(user.userId);
+}
 
 export async function getAuthenticatedUser(
     userId: string,
-): Promise<RegisteredUser | null> {
+): Promise<CurrentUser | null> {
     return findUserById(userId);
 }
