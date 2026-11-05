@@ -1,6 +1,6 @@
 
 import pool from "../db.js";
-import type { RegisteredUser } from "../types/auth.types.js";
+import type { CurrentUser, RegisteredUser } from "../types/auth.types.js";
 import type { PoolClient } from "pg";
 
 export async function customerExists(
@@ -89,16 +89,25 @@ export async function findUserByEmail(email: string): Promise<{
 
 export async function findUserById(
     userId: string,
-): Promise<RegisteredUser | null> {
+): Promise<CurrentUser | null> {
     const result = await pool.query<{
         user_id: string;
         email: string;
         display_name: string;
+        has_professional_profile: boolean;
     }>(
         `
-        SELECT user_id, email, display_name
-        FROM users
-        WHERE user_id = $1
+        SELECT
+            u.user_id,
+            u.email,
+            u.display_name,
+            EXISTS (
+                SELECT 1
+                FROM professional_profiles pp
+                WHERE pp.user_id = u.user_id
+            ) AS has_professional_profile
+        FROM users u
+        WHERE u.user_id = $1
         `,
         [userId],
     );
@@ -113,5 +122,6 @@ export async function findUserById(
         userId: user.user_id,
         email: user.email,
         displayName: user.display_name,
+        hasProfessionalProfile: user.has_professional_profile,
     };
 }

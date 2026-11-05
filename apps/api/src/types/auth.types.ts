@@ -15,3 +15,7 @@ export interface RegisteredUser {
     email: string;
     displayName: string;
 }
+
+export interface CurrentUser extends RegisteredUser {
+    hasProfessionalProfile: boolean;
+}

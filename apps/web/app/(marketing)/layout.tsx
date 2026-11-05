@@ -1,6 +1,7 @@
+
 import type { ReactNode } from "react";
 
-import { SiteHeader } from "@/components/layout/site-header";
+import { AppNavbar } from "@/components/navigation/app-navbar";
 import { SiteFooter } from "@/components/layout/site-footer";
 
 export default function MarketingLayout({
@@ -10,7 +11,7 @@ export default function MarketingLayout({
 }) {
   return (
     <>
-      <SiteHeader />
+      <AppNavbar context="marketing" />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </>

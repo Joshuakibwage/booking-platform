@@ -1,11 +1,29 @@
-export const navigationLinks = [
+export type NavbarContext =
+  | "marketing"
+  | "customer"
+  | "professional";
+
+export const navigationConfig = {
+  marketing: [
     { label: "Explore", href: "/explore" },
     { label: "Professionals", href: "/professionals" },
-    { label: "My Bookings", href: "/bookings" },
-];
+    { label: "About", href: "/about" },
+  ],
+
+  customer: [
+    { label: "Explore", href: "/explore" },
+    { label: "My Bookings", href: "/customer/bookings" },
+  ],
+
+  professional: [
+    { label: "Dashboard", href: "/professional/dashboard" },
+    { label: "Services", href: "/professional/services" },
+    { label: "Availability", href: "/professional/availability" },
+    { label: "Bookings", href: "/professional/bookings" },
+  ],
+};
 
 export const footerLinks = [
   { label: "About", href: "/about" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Sign in", href: "/login" },
 ];

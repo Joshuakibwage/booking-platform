@@ -17,6 +17,7 @@ const authenticatedUser: AuthUser = {
     userId: "test-user-123",
     email: "joshua@example.com",
     displayName: "Test User",
+    hasProfessionalProfile: false,
 };
 
 function createWrapper(queryClient: QueryClient) {

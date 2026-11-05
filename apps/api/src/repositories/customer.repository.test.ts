@@ -50,19 +50,19 @@ describe("customerExists", () => {
     });
 });
 
-
 describe("findUserById", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("returns the user when the ID exists", async () => {
+    it("returns the user with professional profile status when the ID exists", async () => {
         queryMock.mockResolvedValueOnce({
             rows: [
                 {
                     user_id: "user-123",
                     email: "joe@example.com",
                     display_name: "Joe Kibwage",
+                    has_professional_profile: false,
                 },
             ],
         });
@@ -73,10 +73,11 @@ describe("findUserById", () => {
             userId: "user-123",
             email: "joe@example.com",
             displayName: "Joe Kibwage",
+            hasProfessionalProfile: false,
         });
 
         expect(queryMock).toHaveBeenCalledWith(
-            expect.stringContaining("WHERE user_id = $1"),
+            expect.stringContaining("WHERE u.user_id = $1"),
             ["user-123"],
         );
     });
