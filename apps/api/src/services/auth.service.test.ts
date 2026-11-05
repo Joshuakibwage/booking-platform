@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -34,15 +35,23 @@ describe("loginUser", () => {
         vi.clearAllMocks();
     });
 
-    it("should return public user details when credentials are valid", async () => {
-        findUserByEmailMock.mockResolvedValueOnce({
+    it("returns public user details when credentials are valid", async () => {
+        const authenticatedUser = {
+            userId: "user-123",
+            email: "joe@example.com",
+            displayName: "Joe Kibwage",
+            hasProfessionalProfile: false,
+        };
+
+        findUserByEmailMock.mockResolvedValue({
             userId: "user-123",
             email: "joe@example.com",
             displayName: "Joe Kibwage",
             passwordHash: "stored-argon2-hash",
         });
 
-        verifyMock.mockResolvedValueOnce(true);
+        verifyMock.mockResolvedValue(true);
+        findUserByIdMock.mockResolvedValue(authenticatedUser);
 
         const result = await loginUser(
             "joe@example.com",
@@ -54,18 +63,14 @@ describe("loginUser", () => {
             "stored-argon2-hash",
             "correct-password",
         );
+        expect(findUserByIdMock).toHaveBeenCalledWith("user-123");
 
-        expect(result).toEqual({
-            userId: "user-123",
-            email: "joe@example.com",
-            displayName: "Joe Kibwage",
-        });
-
+        expect(result).toEqual(authenticatedUser);
         expect(result).not.toHaveProperty("passwordHash");
     });
 
-    it("should return null when the email does not exist", async () => {
-        findUserByEmailMock.mockResolvedValueOnce(null);
+    it("returns null when the email does not exist", async () => {
+        findUserByEmailMock.mockResolvedValue(null);
 
         const result = await loginUser(
             "unknown@example.com",
@@ -74,17 +79,18 @@ describe("loginUser", () => {
 
         expect(result).toBeNull();
         expect(verifyMock).not.toHaveBeenCalled();
+        expect(findUserByIdMock).not.toHaveBeenCalled();
     });
 
-    it("should return null when the password is incorrect", async () => {
-        findUserByEmailMock.mockResolvedValueOnce({
+    it("returns null when the password is incorrect", async () => {
+        findUserByEmailMock.mockResolvedValue({
             userId: "user-123",
             email: "joe@example.com",
             displayName: "Joe Kibwage",
             passwordHash: "stored-argon2-hash",
         });
 
-        verifyMock.mockResolvedValueOnce(false);
+        verifyMock.mockResolvedValue(false);
 
         const result = await loginUser(
             "joe@example.com",
@@ -92,23 +98,24 @@ describe("loginUser", () => {
         );
 
         expect(result).toBeNull();
+        expect(findUserByIdMock).not.toHaveBeenCalled();
     });
 });
-
 
 describe("getAuthenticatedUser", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("should return the authenticated user's public details", async () => {
+    it("returns the authenticated user's public details", async () => {
         const user = {
             userId: "user-123",
             email: "joe@example.com",
             displayName: "Joe Kibwage",
+            hasProfessionalProfile: false,
         };
 
-        findUserByIdMock.mockResolvedValueOnce(user);
+        findUserByIdMock.mockResolvedValue(user);
 
         const result = await getAuthenticatedUser("user-123");
 
@@ -117,8 +124,8 @@ describe("getAuthenticatedUser", () => {
         expect(result).not.toHaveProperty("passwordHash");
     });
 
-    it("should return null when the user does not exist", async () => {
-        findUserByIdMock.mockResolvedValueOnce(null);
+    it("returns null when the user does not exist", async () => {
+        findUserByIdMock.mockResolvedValue(null);
 
         const result = await getAuthenticatedUser("deleted-user");
 
