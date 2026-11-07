@@ -1,4 +1,3 @@
-
 import {
   cleanup,
   fireEvent,
@@ -6,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { usePathname } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MobileNavigation } from "@/components/navigation/mobile-navigation";
@@ -39,6 +39,7 @@ const defaultProps = {
 describe("MobileNavigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(usePathname).mockReturnValue("/");
   });
 
   afterEach(() => {
@@ -110,14 +111,20 @@ describe("MobileNavigation", () => {
     ).toHaveAttribute("href", "/professional/bookings");
   });
 
-  it("closes the menu when a navigation link is clicked", () => {
-    render(<MobileNavigation {...defaultProps} />);
+  it("closes the menu when the pathname changes", () => {
+    const { rerender } = render(<MobileNavigation {...defaultProps} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Open navigation menu" }),
     );
 
-    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    expect(
+      screen.getByRole("navigation", { name: "Mobile navigation" }),
+    ).toBeInTheDocument();
+
+    vi.mocked(usePathname).mockReturnValue("/explore");
+
+    rerender(<MobileNavigation {...defaultProps} />);
 
     expect(
       screen.queryByRole("navigation", { name: "Mobile navigation" }),
@@ -229,24 +236,6 @@ describe("MobileNavigation", () => {
     expect(
       screen.getByRole("link", { name: "Become a Professional" }),
     ).toHaveAttribute("href", "/become-a-professional");
-  });
-
-  it("closes the menu when Become a Professional is clicked", () => {
-    render(
-      <MobileNavigation {...defaultProps} currentUser={customerUser} />,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open navigation menu" }),
-    );
-
-    fireEvent.click(
-      screen.getByRole("link", { name: "Become a Professional" }),
-    );
-
-    expect(
-      screen.queryByRole("navigation", { name: "Mobile navigation" }),
-    ).not.toBeInTheDocument();
   });
 
   it("shows Professional workspace when the user has a professional profile", () => {
