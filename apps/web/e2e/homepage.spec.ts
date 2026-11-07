@@ -5,8 +5,33 @@ test("homepage displays its main heading", async ({ page }) => {
     await page.goto("/");
 
     await expect(
-        page.getByRole("heading", { name: "Home Page" }),
+        page.getByRole("heading", {
+            level: 1,
+            name: "Independent professionals, booked in minutes.",
+        }),
     ).toBeVisible();
+});
+
+test("homepage displays all service categories", async ({ page }) => {
+    await page.goto("/");
+
+    const categories = [
+        "Beauty & personal care",
+        "Health & wellness",
+        "Learning & coaching",
+        "Home services",
+        "Business & consulting",
+        "Events & creativity",
+    ];
+
+    for (const category of categories) {
+        const categoryLink = page.getByRole("link", {
+            name: new RegExp(category, "i"),
+        });
+
+        await expect(categoryLink).toBeVisible();
+        await expect(categoryLink).toHaveAttribute("href", "/explore");
+    }
 });
 
 test("desktop navigation displays the correct links", async ({ page }) => {
@@ -57,4 +82,69 @@ test("mobile navigation opens and closes after selecting a link", async ({
 
     await expect(page).toHaveURL(/\/about$/);
     await expect(navigation).not.toBeVisible();
+});
+
+
+test("FAQ allows visitors to switch between questions", async ({ page }) => {
+    await page.goto("/");
+
+    const firstQuestion = page.getByRole("button", {
+        name: /What is Schedulyn/,
+    });
+
+    const secondQuestion = page.getByRole("button", {
+        name: /What kinds of services can I find/,
+    });
+
+    // The first question is open by default.
+    await expect(firstQuestion).toHaveAttribute("aria-expanded", "true");
+
+    // Open the second question.
+    await secondQuestion.click();
+
+    // Only the second question should remain open.
+    await expect(secondQuestion).toHaveAttribute("aria-expanded", "true");
+    await expect(firstQuestion).toHaveAttribute("aria-expanded", "false");
+});
+
+test("hero displays CTAs with the correct destinations", async ({ page }) => {
+    await page.goto("/");
+
+    const hero = page.locator('section[aria-labelledby="hero-heading"]');
+
+    const exploreLink = hero.locator('a[href="/explore"]').filter({
+        hasText: "Explore services",
+    });
+
+    const professionalLink = hero.getByRole("link", {
+        name: "Become a professional",
+    });
+
+    await expect(exploreLink).toBeVisible();
+    await expect(professionalLink).toBeVisible();
+
+    await expect(exploreLink).toHaveAttribute("href", "/explore");
+    await expect(professionalLink).toHaveAttribute(
+        "href",
+        "/become-a-professional",
+    );
+});
+
+
+test("final CTA displays the correct destinations", async ({ page }) => {
+    await page.goto("/");
+
+    const finalCta = page.locator(
+        'section[aria-labelledby="final-cta-heading"]',
+    );
+
+    await expect(finalCta).toBeVisible();
+
+    await expect(
+        finalCta.locator('a[href="/explore"]'),
+    ).toBeVisible();
+
+    await expect(
+        finalCta.locator('a[href="/become-a-professional"]'),
+    ).toBeVisible();
 });

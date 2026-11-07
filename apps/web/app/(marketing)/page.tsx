@@ -1,14 +1,20 @@
+import { HeroSection } from "@/components/marketing/sections/hero-section";
+import { CategoriesSection } from "@/components/marketing/sections/categories-section";
+import { HowItWorksSection } from "@/components/marketing/sections/how-it-works-section";
+import { ForProfessionalsSection } from "@/components/marketing/sections/for-professionals-section";
+import { FaqSection } from "@/components/marketing/sections/faq-section";
+import { FinalCtaSection } from "@/components/marketing/sections/final-cta-section";
+
+
 export default function HomePage() {
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        Home Page
-      </h1>
-
-      <p className="mt-3 max-w-2xl text-muted-foreground">
-        Bring your services to Schedulyn, connect with customers, and manage
-        your bookings in one place. Professional onboarding is coming soon.
-      </p>
-    </main>
+    <>
+      <HeroSection />
+      <CategoriesSection />
+      <HowItWorksSection />
+      <ForProfessionalsSection />
+      <FaqSection />
+      <FinalCtaSection />
+    </>
   );
 }

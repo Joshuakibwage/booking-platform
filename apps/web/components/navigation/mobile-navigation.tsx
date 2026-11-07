@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -39,8 +38,15 @@ export function MobileNavigation({
   onAuthOpen,
   onLogout,
 }: MobileNavigationProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setIsOpen(false);
+  }
 
   const links = navigationConfig[context];
 
@@ -63,9 +69,9 @@ export function MobileNavigation({
         </DialogTrigger>
 
         <DialogContent
-            showCloseButton
-            overlayClassName="md:hidden"
-            className="fixed inset-0 top-0 left-0 z-50 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 p-5 shadow-none sm:max-w-none md:hidden"
+          showCloseButton
+          overlayClassName="md:hidden"
+          className="fixed inset-0 top-0 left-0 z-50 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-0 p-5 shadow-none sm:max-w-none md:hidden"
         >
           <DialogTitle className="sr-only">
             Mobile navigation
@@ -87,7 +93,6 @@ export function MobileNavigation({
                     <Link
                       href={link.href}
                       aria-current={isActive ? "page" : undefined}
-                      onClick={() => setIsOpen(false)}
                       className={`block rounded-lg px-3 py-3 text-base font-medium transition-colors ${
                         isActive
                           ? "bg-accent text-foreground"
@@ -111,11 +116,11 @@ export function MobileNavigation({
             ) : currentUser ? (
               <>
                 <AccountMenuContent
-                    user={currentUser}
-                    context={context}
-                    onLogout={() => void handleLogout()}
-                    isLoggingOut={isLoggingOut}
-                    onNavigate={() => setIsOpen(false)}
+                  user={currentUser}
+                  context={context}
+                  onLogout={() => void handleLogout()}
+                  isLoggingOut={isLoggingOut}
+                  onNavigate={() => setIsOpen(false)}
                 />
 
                 {logoutError && (
