@@ -31,16 +31,6 @@ export function FaqSection() {
             Learn more about Schedulyn, the people it serves, and what
             we&apos;re building.
           </p>
-
-          <p className="mt-8 text-sm text-muted-foreground">
-            Can&apos;t find your answer?{" "}
-            <Link
-              href="/contact"
-              className="font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Get in touch
-            </Link>
-          </p>
         </div>
 
         {/* Right: accordion */}
