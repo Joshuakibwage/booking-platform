@@ -61,6 +61,7 @@ describe("POST /professionals/profile", () => {
         const profile = {
             profile_id: profileId,
             user_id: userId,
+            public_name: "Joe's Barbershop",
             bio: "Experienced barber",
             time_zone: "Africa/Nairobi",
             created_at: new Date("2026-10-27T07:00:00.000Z"),
@@ -71,6 +72,7 @@ describe("POST /professionals/profile", () => {
         const response = await request(app)
             .post("/professionals/profile")
             .send({
+                publicName: "Joe's Barbershop",
                 bio: "Experienced barber",
                 timeZone: "Africa/Nairobi",
             });
@@ -78,9 +80,11 @@ describe("POST /professionals/profile", () => {
         expect(response.status).toBe(201);
         expect(response.body.status).toBe("success");
         expect(response.body.data.profile_id).toBe(profileId);
+        expect(response.body.data.public_name).toBe("Joe's Barbershop");
 
         expect(createProfessionalProfileMock).toHaveBeenCalledWith({
             userId,
+            publicName: "Joe's Barbershop",
             bio: "Experienced barber",
             timeZone: "Africa/Nairobi",
         });
@@ -103,6 +107,7 @@ describe("POST /professionals/profile", () => {
         const response = await request(app)
             .post("/professionals/profile")
             .send({
+                publicName: "Joe's Barbershop",
                 timeZone: "Africa/Nairobi",
             });
 
@@ -120,7 +125,7 @@ describe("GET /professionals/:professionalId/profile", () => {
         const profile = {
             profile_id: profileId,
             user_id: userId,
-            display_name: "Jane Doe",
+            public_name: "Joe's Barbershop",
             bio: "Experienced barber",
             time_zone: "Africa/Nairobi",
             created_at: new Date("2026-10-27T07:00:00.000Z"),
@@ -135,7 +140,7 @@ describe("GET /professionals/:professionalId/profile", () => {
         expect(response.status).toBe(200);
         expect(response.body.status).toBe("success");
         expect(response.body.data.profile_id).toBe(profileId);
-        expect(response.body.data.display_name).toBe("Jane Doe");
+        expect(response.body.data.public_name).toBe("Joe's Barbershop");
 
         expect(findProfessionalProfileByIdMock).toHaveBeenCalledWith(
             profileId,

@@ -11,6 +11,7 @@ import {
 } from "../controllers/professional-profile.controller.js";
 import {
     createServiceHandler,
+    getProfessionalServicesHandler,
     updateServiceHandler,
     deactivateServiceHandler,
 } from "../controllers/service.controller.js";
@@ -41,6 +42,8 @@ router.post("/profile", requireAuth, createProfessionalProfileHandler);
 router.patch("/profile", requireAuth, updateProfessionalProfileHandler);
 
 router.get("/:professionalId/profile", getProfessionalProfileHandler);
+
+router.get("/services", requireAuth, getProfessionalServicesHandler);
 
 router.post("/services", requireAuth, createServiceHandler);
 

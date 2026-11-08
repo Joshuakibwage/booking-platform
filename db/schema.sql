@@ -1,6 +1,6 @@
 \restrict dbmate
 
--- Dumped from database version 18.6 (4e5fd08)
+-- Dumped from database version 18.6 (ac70818)
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-1.pgdg24.04+2)
 
 SET statement_timeout = 0;
@@ -83,7 +83,8 @@ CREATE TABLE public.professional_profiles (
     user_id uuid NOT NULL,
     bio text,
     time_zone character varying(100) NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    public_name character varying(100) NOT NULL
 );
 
 
@@ -339,4 +340,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261020083136'),
     ('20261020094503'),
     ('20261020113213'),
-    ('20261026074201');
+    ('20261026074201'),
+    ('20261108100628');

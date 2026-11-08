@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import {
     createService,
     deactivateService,
+    findActiveServicesByProfessionalId,
     updateService,
 } from "../repositories/service.repository.js";
 import { findProfessionalProfileIdByUserId } from "../repositories/professional-profile.repository.js";
@@ -172,6 +173,44 @@ export async function deactivateServiceHandler(
         return res.status(200).json({
             status: "success",
             data: service,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+
+export async function getProfessionalServicesHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
+    try {
+        const user = req.session.user;
+
+        if (!user) {
+            return res.status(401).json({
+                status: "error",
+                message: "Authentication required",
+            });
+        }
+
+        const professionalId =
+            await findProfessionalProfileIdByUserId(user.userId);
+
+        if (!professionalId) {
+            return res.status(403).json({
+                status: "error",
+                message: "Professional profile required",
+            });
+        }
+
+        const services =
+            await findActiveServicesByProfessionalId(professionalId);
+
+        return res.status(200).json({
+            status: "success",
+            data: services,
         });
     } catch (error) {
         next(error);

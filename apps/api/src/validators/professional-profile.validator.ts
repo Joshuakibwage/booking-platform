@@ -1,13 +1,25 @@
 
 export type CreateProfessionalProfileInput = {
+    publicName: string;
     bio?: string | null;
     timeZone: string;
 };
 
 export type UpdateProfessionalProfileInput = {
+    publicName?: string;
     bio?: string | null;
     timeZone?: string;
 };
+
+function isValidPublicName(value: unknown): value is string {
+    if (typeof value !== "string") {
+        return false;
+    }
+
+    const trimmedValue = value.trim();
+
+    return trimmedValue.length > 0 && trimmedValue.length <= 100;
+}
 
 function isValidTimeZone(value: unknown): value is string {
     if (typeof value !== "string" || value.trim() === "") {
@@ -34,6 +46,10 @@ export function validateCreateProfessionalProfile(
 
     const input = body as Record<string, unknown>;
 
+    if (!isValidPublicName(input.publicName)) {
+        return null;
+    }
+
     if (!isValidTimeZone(input.timeZone)) {
         return null;
     }
@@ -51,6 +67,7 @@ export function validateCreateProfessionalProfile(
     }
 
     return {
+        publicName: input.publicName.trim(),
         timeZone: input.timeZone,
         ...(input.bio !== undefined ? { bio: input.bio as string | null } : {}),
     };
@@ -64,10 +81,16 @@ export function validateUpdateProfessionalProfile(
     }
 
     const input = body as Record<string, unknown>;
+
+    const hasPublicName = Object.hasOwn(input, "publicName");
     const hasBio = Object.hasOwn(input, "bio");
     const hasTimeZone = Object.hasOwn(input, "timeZone");
 
-    if (!hasBio && !hasTimeZone) {
+    if (!hasPublicName && !hasBio && !hasTimeZone) {
+        return null;
+    }
+
+    if (hasPublicName && !isValidPublicName(input.publicName)) {
         return null;
     }
 
@@ -84,6 +107,9 @@ export function validateUpdateProfessionalProfile(
     }
 
     return {
+        ...(hasPublicName
+            ? { publicName: (input.publicName as string).trim() }
+            : {}),
         ...(hasBio ? { bio: input.bio as string | null } : {}),
         ...(hasTimeZone ? { timeZone: input.timeZone as string } : {}),
     };

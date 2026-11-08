@@ -20,6 +20,7 @@ import {
 const profile = {
     profile_id: "7ba7b810-9dad-41d1-80b4-00c04fd430c8",
     user_id: "550e8400-e29b-41d4-a716-446655440000",
+    public_name: "Sam's Barbershop",
     bio: "Experienced barber",
     time_zone: "Africa/Nairobi",
     created_at: new Date("2026-10-27T07:00:00.000Z"),
@@ -37,6 +38,7 @@ describe("createProfessionalProfile", () => {
 
         const result = await createProfessionalProfile({
             userId: profile.user_id,
+            publicName: profile.public_name,
             bio: profile.bio,
             timeZone: profile.time_zone,
         });
@@ -48,6 +50,7 @@ describe("createProfessionalProfile", () => {
             expect.stringContaining("INSERT INTO professional_profiles"),
             [
                 profile.user_id,
+                profile.public_name,
                 profile.bio,
                 profile.time_zone,
             ],
@@ -61,6 +64,7 @@ describe("createProfessionalProfile", () => {
 
         await createProfessionalProfile({
             userId: profile.user_id,
+            publicName: profile.public_name,
             timeZone: profile.time_zone,
         });
 
@@ -68,6 +72,7 @@ describe("createProfessionalProfile", () => {
             expect.any(String),
             [
                 profile.user_id,
+                profile.public_name,
                 null,
                 profile.time_zone,
             ],
@@ -75,26 +80,57 @@ describe("createProfessionalProfile", () => {
     });
 
     it("propagates database errors", async () => {
-        const error = new Error("Database unavailable");
-        queryMock.mockRejectedValue(error);
+        queryMock.mockRejectedValue(
+            new Error("Database unavailable"),
+        );
 
         await expect(
             createProfessionalProfile({
                 userId: profile.user_id,
+                publicName: profile.public_name,
                 timeZone: profile.time_zone,
             }),
         ).rejects.toThrow("Database unavailable");
     });
 });
 
-
-
 describe("updateProfessionalProfile", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("updates the biography without changing the time zone", async () => {
+    it("updates the public name without changing other fields", async () => {
+        const updatedProfile = {
+            ...profile,
+            public_name: "Sam's New Barbershop",
+        };
+
+        queryMock.mockResolvedValue({
+            rows: [updatedProfile],
+        });
+
+        const result = await updateProfessionalProfile({
+            userId: profile.user_id,
+            publicName: "Sam's New Barbershop",
+        });
+
+        expect(result).toEqual(updatedProfile);
+
+        expect(queryMock).toHaveBeenCalledWith(
+            expect.stringContaining("UPDATE professional_profiles"),
+            [
+                profile.user_id,
+                true,
+                "Sam's New Barbershop",
+                false,
+                null,
+                false,
+                null,
+            ],
+        );
+    });
+
+    it("updates the biography without changing other fields", async () => {
         queryMock.mockResolvedValue({
             rows: [{ ...profile, bio: "Senior barber" }],
         });
@@ -113,6 +149,8 @@ describe("updateProfessionalProfile", () => {
             expect.stringContaining("UPDATE professional_profiles"),
             [
                 profile.user_id,
+                false,
+                null,
                 true,
                 "Senior barber",
                 false,
@@ -137,6 +175,8 @@ describe("updateProfessionalProfile", () => {
             expect.any(String),
             [
                 profile.user_id,
+                false,
+                null,
                 true,
                 null,
                 false,
@@ -159,31 +199,24 @@ describe("updateProfessionalProfile", () => {
     });
 });
 
-
-
 describe("findProfessionalProfileById", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("returns the profile with the professional's display name", async () => {
-        const publicProfile = {
-            ...profile,
-            display_name: "Sam Mwangi",
-        };
-
+    it("returns the public profile with its public name", async () => {
         queryMock.mockResolvedValue({
-            rows: [publicProfile],
+            rows: [profile],
         });
 
         const result = await findProfessionalProfileById(
             profile.profile_id,
         );
 
-        expect(result).toEqual(publicProfile);
+        expect(result).toEqual(profile);
 
         expect(queryMock).toHaveBeenCalledWith(
-            expect.stringContaining("JOIN users AS u"),
+            expect.stringContaining("FROM professional_profiles"),
             [profile.profile_id],
         );
     });
