@@ -4,5 +4,7 @@ export const queryKeys = {
     },
     professional: {
         services: ["professional", "services"],
+        weeklyAvailability: ["professional", "weekly-availability"],
+        availabilityExceptions: ["professional", "availability-exceptions"],
     },
 } as const;
