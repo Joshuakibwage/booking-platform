@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { faqItems } from "@/constants/marketing";
