@@ -13,6 +13,8 @@ import bookingRouter from "./routes/booking.routes.js";
 import availabilityRouter from "./routes/availability.routes.js";
 import customerRouter from "./routes/customer.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import serviceCategoryRouter from "./routes/service-category.routes.js";
+import publicServiceRouter from "./routes/public-service.routes.js";
 
 const app: Express = express();
 
@@ -86,6 +88,8 @@ app.use("/bookings", bookingRouter);
 app.use("/professionals", availabilityRouter);
 app.use("/customers", customerRouter);
 app.use("/auth", authRouter);
+app.use("/categories", serviceCategoryRouter);
+app.use("/services", publicServiceRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

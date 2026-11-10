@@ -177,3 +177,69 @@ describe("CORS", () => {
         );
     });
 });
+
+describe("GET /services", () => {
+    beforeEach(() => {
+        queryMock.mockReset();
+    });
+
+    it("should return public services without authentication", async () => {
+        const services = [
+            {
+                service_id: "service-1",
+                professional_id: "professional-1",
+                category_id: "category-1",
+                name: "Haircut",
+                description: "Professional haircut",
+                duration_minutes: 45,
+                price: "1500.00",
+                professional_name: "Alex",
+                category_name: "Beauty & personal care",
+                category_slug: "beauty-personal-care",
+            },
+        ];
+
+        queryMock.mockResolvedValueOnce({ rows: services });
+
+        const response = await request(app).get("/services");
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            status: "success",
+            data: services,
+        });
+        expect(queryMock).toHaveBeenCalledOnce();
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([null, null]);
+    });
+
+    it("should pass search and category filters to the repository", async () => {
+        queryMock.mockResolvedValueOnce({ rows: [] });
+
+        const response = await request(app).get(
+            "/services?search=haircut&category=beauty-personal-care",
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            status: "success",
+            data: [],
+        });
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            "haircut",
+            "beauty-personal-care",
+        ]);
+    });
+
+    it("should reject invalid query parameters", async () => {
+        const response = await request(app).get(
+            "/services?search=haircut&search=trim",
+        );
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            status: "error",
+            message: "Invalid service filters.",
+        });
+        expect(queryMock).not.toHaveBeenCalled();
+    });
+});
