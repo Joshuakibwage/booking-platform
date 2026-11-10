@@ -13,6 +13,25 @@ export type ProfessionalService = {
     created_at: Date;
 };
 
+export type PublicService = {
+    service_id: string;
+    professional_id: string;
+    category_id: string | null;
+    name: string;
+    description: string | null;
+    duration_minutes: number;
+    price: string;
+    created_at: Date;
+    professional_name: string;
+    category_name: string | null;
+    category_slug: string | null;
+};
+
+export type PublicServiceFilters = {
+    search?: string;
+    category?: string;
+};
+
 export type CreateServiceInput = {
     professionalId: string;
     name: string;
@@ -216,4 +235,49 @@ export async function deactivateService(
     );
 
     return result.rows[0] ?? null;
+}
+
+
+export async function findPublicServices(
+    filters: PublicServiceFilters = {},
+): Promise<PublicService[]> {
+    const search = filters.search?.trim() || null;
+    const category = filters.category?.trim() || null;
+
+    const result = await pool.query<PublicService>(
+        `
+        SELECT
+            s.service_id,
+            s.professional_id,
+            s.category_id,
+            s.name,
+            s.description,
+            s.duration_minutes,
+            s.price,
+            s.created_at,
+            p.public_name AS professional_name,
+            c.name AS category_name,
+            c.slug AS category_slug
+        FROM services AS s
+        JOIN professional_profiles AS p
+            ON p.profile_id = s.professional_id
+        LEFT JOIN service_categories AS c
+            ON c.category_id = s.category_id
+        WHERE s.is_active = TRUE
+          AND (s.category_id IS NULL OR c.is_active = TRUE)
+          AND (
+              $1::text IS NULL
+              OR s.name ILIKE '%' || $1 || '%'
+              OR COALESCE(s.description, '') ILIKE '%' || $1 || '%'
+          )
+          AND (
+              $2::text IS NULL
+              OR (c.slug = $2 AND c.is_active = TRUE)
+          )
+        ORDER BY s.created_at DESC, s.service_id DESC
+        `,
+        [search, category],
+    );
+
+    return result.rows;
 }

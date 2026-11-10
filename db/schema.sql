@@ -98,6 +98,23 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: service_categories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_categories (
+    category_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(100) NOT NULL,
+    slug character varying(120) NOT NULL,
+    description text NOT NULL,
+    image_url character varying(500) NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    display_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT service_categories_display_order_check CHECK ((display_order >= 0))
+);
+
+
+--
 -- Name: services; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -110,6 +127,7 @@ CREATE TABLE public.services (
     price numeric(10,2) NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    category_id uuid,
     CONSTRAINT services_duration_minutes_check CHECK ((duration_minutes > 0)),
     CONSTRAINT services_price_check CHECK ((price >= (0)::numeric))
 );
@@ -220,6 +238,22 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: service_categories service_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_categories
+    ADD CONSTRAINT service_categories_pkey PRIMARY KEY (category_id);
+
+
+--
+-- Name: service_categories service_categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_categories
+    ADD CONSTRAINT service_categories_slug_key UNIQUE (slug);
+
+
+--
 -- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -257,6 +291,13 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.weekly_availability
     ADD CONSTRAINT weekly_availability_pkey PRIMARY KEY (availability_id);
+
+
+--
+-- Name: idx_services_category_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_services_category_id ON public.services USING btree (category_id) WHERE (category_id IS NOT NULL);
 
 
 --
@@ -307,6 +348,14 @@ ALTER TABLE ONLY public.professional_profiles
 
 
 --
+-- Name: services services_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT services_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.service_categories(category_id) ON DELETE RESTRICT;
+
+
+--
 -- Name: services services_professional_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -341,4 +390,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261020094503'),
     ('20261020113213'),
     ('20261026074201'),
-    ('20261108100628');
+    ('20261108100628'),
+    ('20261110081838');
