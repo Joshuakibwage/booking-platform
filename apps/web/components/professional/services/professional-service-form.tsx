@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useId } from "react";
@@ -13,6 +14,7 @@ import {
 import { AuthFormField } from "@/components/auth/auth-form-field";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { usePublicServiceCategories } from "@/hooks/public/use-public-service-categories";
 import {
     professionalServiceSchema,
     type ProfessionalServiceFormValues,
@@ -31,6 +33,7 @@ type ProfessionalServiceFormProps = {
 };
 
 const defaultValues: ProfessionalServiceFormValues = {
+    categoryId: "",
     name: "",
     description: "",
     durationMinutes: 30,
@@ -79,6 +82,12 @@ export function ProfessionalServiceForm({
     const formId = useId();
 
     const {
+        data: categories = [],
+        isLoading: isLoadingCategories,
+        isError: isCategoriesError,
+    } = usePublicServiceCategories();
+
+    const {
         register,
         control,
         handleSubmit,
@@ -89,7 +98,7 @@ export function ProfessionalServiceForm({
         defaultValues: initialValues,
     });
 
-    // Live values drive the preview. The form itself is unchanged.
+    // Live values drive the preview.
     const [name, description, durationMinutes, price] = useWatch({
         control,
         name: ["name", "description", "durationMinutes", "price"],
@@ -97,7 +106,9 @@ export function ProfessionalServiceForm({
 
     const duration = Number.isFinite(durationMinutes) ? durationMinutes : 0;
     const priceValue = Number.isFinite(price) ? price : 0;
-    const ringProgress = Math.min(Math.max(duration, 0), RING_MAX_MINUTES) / RING_MAX_MINUTES;
+    const ringProgress =
+        Math.min(Math.max(duration, 0), RING_MAX_MINUTES) /
+        RING_MAX_MINUTES;
 
     // Fields rise in one after another when the form mounts.
     const container: Variants = {
@@ -118,6 +129,9 @@ export function ProfessionalServiceForm({
             transition: { duration: reduce ? 0 : 0.45, ease: EASE },
         },
     };
+
+    const categoriesUnavailable =
+        isLoadingCategories || isCategoriesError || categories.length === 0;
 
     return (
         <motion.form
@@ -182,11 +196,12 @@ export function ProfessionalServiceForm({
                         <p
                             className={cn(
                                 "truncate font-medium",
-                                !name && "text-muted-foreground"
+                                !name && "text-muted-foreground",
                             )}
                         >
                             {name || "Your service name"}
                         </p>
+
                         <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
                             {description ||
                                 "A short description will appear here."}
@@ -197,6 +212,7 @@ export function ProfessionalServiceForm({
                         <p className="font-medium tabular-nums">
                             {priceValue > 0 ? priceValue.toFixed(2) : "Free"}
                         </p>
+
                         <p className="text-xs text-muted-foreground">
                             {duration > 0 ? formatDuration(duration) : ""}
                         </p>
@@ -204,6 +220,59 @@ export function ProfessionalServiceForm({
                 </div>
             </motion.div>
 
+            {/* Service category */}
+            <motion.div variants={item} className="space-y-2">
+                <label htmlFor="categoryId" className="text-sm font-medium">
+                    Service category
+                </label>
+
+                <select
+                    id="categoryId"
+                    {...register("categoryId")}
+                    disabled={categoriesUnavailable}
+                    aria-invalid={Boolean(errors.categoryId)}
+                    aria-describedby={
+                        errors.categoryId ? "category-error" : undefined
+                    }
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    <option value="">
+                        {isLoadingCategories
+                            ? "Loading categories..."
+                            : "Select a category"}
+                    </option>
+
+                    {categories.map((category) => (
+                        <option
+                            key={category.category_id}
+                            value={category.category_id}
+                        >
+                            {category.name}
+                        </option>
+                    ))}
+                </select>
+
+                {isCategoriesError && (
+                    <p role="alert" className="text-sm text-destructive">
+                        We couldn&apos;t load categories. Please try again.
+                    </p>
+                )}
+
+                {!isLoadingCategories &&
+                    !isCategoriesError &&
+                    categories.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                            No service categories are currently available.
+                        </p>
+                    )}
+
+                <FieldError
+                    id="category-error"
+                    message={errors.categoryId?.message}
+                />
+            </motion.div>
+
+            {/* Service name */}
             <motion.div variants={item}>
                 <AuthFormField
                     id="name"
@@ -214,6 +283,7 @@ export function ProfessionalServiceForm({
                 />
             </motion.div>
 
+            {/* Description */}
             <motion.div variants={item} className="space-y-2">
                 <label htmlFor="description" className="text-sm font-medium">
                     Description
@@ -237,12 +307,16 @@ export function ProfessionalServiceForm({
                 />
             </motion.div>
 
+            {/* Duration and price */}
             <motion.div
                 variants={item}
                 className="grid items-start gap-5 sm:grid-cols-2"
             >
                 <div className="space-y-2">
-                    <label htmlFor="durationMinutes" className="text-sm font-medium">
+                    <label
+                        htmlFor="durationMinutes"
+                        className="text-sm font-medium"
+                    >
                         Duration (minutes)
                     </label>
 
@@ -256,7 +330,9 @@ export function ProfessionalServiceForm({
                         })}
                         aria-invalid={Boolean(errors.durationMinutes)}
                         aria-describedby={
-                            errors.durationMinutes ? "duration-error" : undefined
+                            errors.durationMinutes
+                                ? "duration-error"
+                                : undefined
                         }
                         className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring"
                     />
@@ -275,7 +351,9 @@ export function ProfessionalServiceForm({
                                     key={minutes}
                                     type="button"
                                     aria-pressed={selected}
-                                    whileTap={reduce ? undefined : { scale: 0.94 }}
+                                    whileTap={
+                                        reduce ? undefined : { scale: 0.94 }
+                                    }
                                     onClick={() =>
                                         setValue("durationMinutes", minutes, {
                                             shouldDirty: true,
@@ -300,12 +378,13 @@ export function ProfessionalServiceForm({
                                             }
                                         />
                                     )}
+
                                     <span
                                         className={cn(
                                             "relative transition-colors duration-200",
                                             selected
                                                 ? "text-primary-foreground"
-                                                : "text-muted-foreground"
+                                                : "text-muted-foreground",
                                         )}
                                     >
                                         {minutes}
@@ -348,6 +427,7 @@ export function ProfessionalServiceForm({
                 </div>
             </motion.div>
 
+            {/* Server-side form error */}
             <AnimatePresence initial={false}>
                 {errorMessage && (
                     <motion.p
@@ -364,13 +444,13 @@ export function ProfessionalServiceForm({
                 )}
             </AnimatePresence>
 
+            {/* Submit */}
             <motion.div variants={item}>
                 <Button
                     type="submit"
                     className="w-full"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || categoriesUnavailable}
                 >
-                    {/* Label swaps with a short slide instead of snapping */}
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.span
                             key={isSubmitting ? "saving" : "idle"}

@@ -4,6 +4,7 @@ export type CreateServiceInput = {
     description?: string | null;
     durationMinutes: number;
     price: number;
+    categoryId: string;
 };
 
 export type UpdateServiceInput = {
@@ -11,6 +12,7 @@ export type UpdateServiceInput = {
     description?: string | null;
     durationMinutes?: number;
     price?: number;
+    categoryId?: string;
 };
 
 function isObject(
@@ -58,6 +60,15 @@ function isValidPrice(value: unknown): value is number {
     );
 }
 
+function isValidCategoryId(value: unknown): value is string {
+    return (
+        typeof value === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            value,
+        )
+    );
+}
+
 export function validateCreateService(
     body: unknown,
 ): CreateServiceInput | null {
@@ -68,7 +79,8 @@ export function validateCreateService(
     if (
         !isValidName(body.name) ||
         !isValidDuration(body.durationMinutes) ||
-        !isValidPrice(body.price)
+        !isValidPrice(body.price) ||
+        !isValidCategoryId(body.categoryId)
     ) {
         return null;
     }
@@ -84,6 +96,7 @@ export function validateCreateService(
         name: body.name.trim(),
         durationMinutes: body.durationMinutes,
         price: body.price,
+        categoryId: body.categoryId,
         ...(body.description !== undefined
             ? { description: body.description }
             : {}),
@@ -101,8 +114,15 @@ export function validateUpdateService(
     const hasDescription = Object.hasOwn(body, "description");
     const hasDuration = Object.hasOwn(body, "durationMinutes");
     const hasPrice = Object.hasOwn(body, "price");
+    const hasCategoryId = Object.hasOwn(body, "categoryId");
 
-    if (!hasName && !hasDescription && !hasDuration && !hasPrice) {
+    if (
+        !hasName &&
+        !hasDescription &&
+        !hasDuration &&
+        !hasPrice &&
+        !hasCategoryId
+    ) {
         return null;
     }
 
@@ -125,6 +145,10 @@ export function validateUpdateService(
         return null;
     }
 
+    if (hasCategoryId && !isValidCategoryId(body.categoryId)) {
+        return null;
+    }
+
     return {
         ...(hasName ? { name: (body.name as string).trim() } : {}),
         ...(hasDescription
@@ -134,5 +158,8 @@ export function validateUpdateService(
             ? { durationMinutes: body.durationMinutes as number }
             : {}),
         ...(hasPrice ? { price: body.price as number } : {}),
+        ...(hasCategoryId
+            ? { categoryId: body.categoryId as string }
+            : {}),
     };
 }

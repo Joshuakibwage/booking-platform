@@ -1,6 +1,11 @@
+
 import { z } from "zod";
 
 export const professionalServiceSchema = z.object({
+    categoryId: z
+        .string()
+        .uuid("Please select a valid service category."),
+
     name: z
         .string()
         .trim()

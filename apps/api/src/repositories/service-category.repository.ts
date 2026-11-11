@@ -57,3 +57,27 @@ export async function findActiveServiceCategoryBySlug(
 
     return result.rows[0] ?? null;
 }
+
+export async function findActiveServiceCategoryById(
+    categoryId: string,
+): Promise<ServiceCategory | null> {
+    const result = await pool.query<ServiceCategory>(
+        `
+        SELECT
+            category_id,
+            name,
+            slug,
+            description,
+            image_url,
+            is_active,
+            display_order,
+            created_at
+        FROM service_categories
+        WHERE category_id = $1
+          AND is_active = TRUE
+        `,
+        [categoryId],
+    );
+
+    return result.rows[0] ?? null;
+}
