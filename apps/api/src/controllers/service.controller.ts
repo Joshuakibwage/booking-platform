@@ -11,6 +11,8 @@ import {
     validateCreateService,
     validateUpdateService,
 } from "../validators/service.validator.js";
+import { findActiveServiceCategoryById } from "../repositories/service-category.repository.js";
+
 
 export async function createServiceHandler(
     req: Request,
@@ -43,6 +45,17 @@ export async function createServiceHandler(
             return res.status(403).json({
                 status: "error",
                 message: "Professional profile required",
+            });
+        }
+
+        const category = await findActiveServiceCategoryById(
+            input.categoryId,
+        );
+
+        if (!category) {
+            return res.status(400).json({
+                status: "error",
+                message: "Invalid or inactive service category",
             });
         }
 
@@ -103,6 +116,19 @@ export async function updateServiceHandler(
             });
         }
 
+        if (input.categoryId !== undefined) {
+            const category = await findActiveServiceCategoryById(
+                input.categoryId,
+            );
+
+            if (!category) {
+                return res.status(400).json({
+                    status: "error",
+                    message: "Invalid or inactive service category",
+                });
+            }
+        }
+
         const service = await updateService({
             serviceId,
             professionalId,
@@ -124,8 +150,6 @@ export async function updateServiceHandler(
         next(error);
     }
 }
-
-
 
 export async function deactivateServiceHandler(
     req: Request,

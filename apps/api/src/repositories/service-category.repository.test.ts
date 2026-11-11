@@ -12,6 +12,7 @@ vi.mock("../db.js", () => ({
 
 import {
     findActiveServiceCategories,
+    findActiveServiceCategoryById,
     findActiveServiceCategoryBySlug,
 } from "./service-category.repository.js";
 
@@ -86,6 +87,34 @@ describe("service category repository", () => {
 
             const result =
                 await findActiveServiceCategoryBySlug("unknown-category");
+
+            expect(result).toBeNull();
+        });
+    });
+
+    describe("findActiveServiceCategoryById", () => {
+        it("returns an active category matching the ID", async () => {
+            const category = {
+                category_id: "category-1",
+                name: "Beauty & personal care",
+                slug: "beauty-personal-care",
+            };
+
+            queryMock.mockResolvedValue({ rows: [category] });
+
+            const result = await findActiveServiceCategoryById("category-1");
+
+            expect(result).toEqual(category);
+            expect(queryMock).toHaveBeenCalledWith(
+                expect.stringContaining("WHERE category_id = $1"),
+                ["category-1"],
+            );
+        });
+
+        it("returns null when the category does not exist or is inactive", async () => {
+            queryMock.mockResolvedValue({ rows: [] });
+
+            const result = await findActiveServiceCategoryById("unknown-id");
 
             expect(result).toBeNull();
         });

@@ -5,6 +5,8 @@ import {
     validateUpdateService,
 } from "./service.validator.js";
 
+const validCategoryId = "64814c4f-1be1-4ae7-9473-6235275c396d";
+
 describe("validateCreateService", () => {
     it("accepts valid service input", () => {
         const result = validateCreateService({
@@ -12,6 +14,7 @@ describe("validateCreateService", () => {
             description: "A standard haircut",
             durationMinutes: 30,
             price: 500.5,
+            categoryId: validCategoryId,
         });
 
         expect(result).toEqual({
@@ -19,6 +22,7 @@ describe("validateCreateService", () => {
             description: "A standard haircut",
             durationMinutes: 30,
             price: 500.5,
+            categoryId: validCategoryId,
         });
     });
 
@@ -27,13 +31,36 @@ describe("validateCreateService", () => {
             name: "Haircut",
             durationMinutes: 30,
             price: 500,
+            categoryId: validCategoryId,
         });
 
         expect(result).toEqual({
             name: "Haircut",
             durationMinutes: 30,
             price: 500,
+            categoryId: validCategoryId,
         });
+    });
+
+    it("rejects a missing or invalid category ID", () => {
+        const invalidCategoryIds: unknown[] = [
+            undefined,
+            null,
+            "",
+            "not-a-uuid",
+            "64814c4f-1be1-4ae7-9473-6235275c396",
+        ];
+
+        for (const categoryId of invalidCategoryIds) {
+            expect(
+                validateCreateService({
+                    name: "Haircut",
+                    durationMinutes: 30,
+                    price: 500,
+                    categoryId,
+                }),
+            ).toBeNull();
+        }
     });
 
     it("rejects a missing or invalid name", () => {
@@ -52,6 +79,7 @@ describe("validateCreateService", () => {
                     name,
                     durationMinutes: 30,
                     price: 500,
+                    categoryId: validCategoryId,
                 }),
             ).toBeNull();
         }
@@ -75,6 +103,7 @@ describe("validateCreateService", () => {
                     name: "Haircut",
                     durationMinutes,
                     price: 500,
+                    categoryId: validCategoryId,
                 }),
             ).toBeNull();
         }
@@ -96,6 +125,7 @@ describe("validateCreateService", () => {
                     name: "Haircut",
                     durationMinutes: 30,
                     price,
+                    categoryId: validCategoryId,
                 }),
             ).toBeNull();
         }
@@ -116,6 +146,7 @@ describe("validateCreateService", () => {
                     description,
                     durationMinutes: 30,
                     price: 500,
+                    categoryId: validCategoryId,
                 }),
             ).toBeNull();
         }
@@ -126,6 +157,7 @@ describe("validateCreateService", () => {
             name: "Haircut",
             durationMinutes: 30,
             price: 500.123,
+            categoryId: validCategoryId,
         });
 
         expect(result).toBeNull();
@@ -136,6 +168,7 @@ describe("validateCreateService", () => {
             name: "Haircut",
             durationMinutes: 30,
             price: 100_000_000,
+            categoryId: validCategoryId,
         });
 
         expect(result).toBeNull();
@@ -146,6 +179,7 @@ describe("validateCreateService", () => {
             name: "Haircut",
             durationMinutes: 30,
             price: 99_999_999.99,
+            categoryId: validCategoryId,
         });
 
         expect(result).not.toBeNull();
@@ -188,6 +222,31 @@ describe("validateUpdateService", () => {
         });
     });
 
+    it("accepts a partial update containing only a category ID", () => {
+        expect(
+            validateUpdateService({
+                categoryId: validCategoryId,
+            }),
+        ).toEqual({
+            categoryId: validCategoryId,
+        });
+    });
+
+    it("rejects an invalid category ID during an update", () => {
+        const invalidCategoryIds: unknown[] = [
+            null,
+            "",
+            "not-a-uuid",
+            "64814c4f-1be1-4ae7-9473-6235275c396",
+        ];
+
+        for (const categoryId of invalidCategoryIds) {
+            expect(
+                validateUpdateService({ categoryId }),
+            ).toBeNull();
+        }
+    });
+
     it("accepts null to clear the description", () => {
         expect(
             validateUpdateService({
@@ -205,12 +264,14 @@ describe("validateUpdateService", () => {
                 description: "Updated description",
                 durationMinutes: 45,
                 price: 850,
+                categoryId: validCategoryId,
             }),
         ).toEqual({
             name: "Premium Haircut",
             description: "Updated description",
             durationMinutes: 45,
             price: 850,
+            categoryId: validCategoryId,
         });
     });
 

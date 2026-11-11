@@ -22,6 +22,7 @@ import {
 const service = {
     service_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     professional_id: "550e8400-e29b-41d4-a716-446655440000",
+    category_id: "64814c4f-1be1-4ae7-9473-6235275c396d",
     name: "Consultation",
     duration_minutes: 30,
     price: "1500.00",
@@ -38,9 +39,7 @@ describe("findActiveServiceById", () => {
             rows: [service],
         });
 
-        const result = await findActiveServiceById(
-            service.service_id,
-        );
+        const result = await findActiveServiceById(service.service_id);
 
         expect(result).toEqual(service);
         expect(queryMock).toHaveBeenCalledOnce();
@@ -55,9 +54,7 @@ describe("findActiveServiceById", () => {
             rows: [],
         });
 
-        const result = await findActiveServiceById(
-            service.service_id,
-        );
+        const result = await findActiveServiceById(service.service_id);
 
         expect(result).toBeNull();
     });
@@ -68,10 +65,11 @@ describe("createService", () => {
         vi.clearAllMocks();
     });
 
-    it("creates a service and returns the created record", async () => {
+    it("creates a service with its category and returns the created record", async () => {
         const createdService = {
             service_id: service.service_id,
             professional_id: service.professional_id,
+            category_id: service.category_id,
             name: "Consultation",
             description: "A 30-minute consultation",
             duration_minutes: 30,
@@ -86,6 +84,7 @@ describe("createService", () => {
 
         const result = await createService({
             professionalId: service.professional_id,
+            categoryId: service.category_id,
             name: "Consultation",
             description: "A 30-minute consultation",
             durationMinutes: 30,
@@ -98,6 +97,7 @@ describe("createService", () => {
             expect.stringContaining("INSERT INTO services"),
             [
                 service.professional_id,
+                service.category_id,
                 "Consultation",
                 "A 30-minute consultation",
                 30,
@@ -112,6 +112,7 @@ describe("createService", () => {
                 {
                     service_id: service.service_id,
                     professional_id: service.professional_id,
+                    category_id: service.category_id,
                     name: "Consultation",
                     description: null,
                     duration_minutes: 30,
@@ -124,6 +125,7 @@ describe("createService", () => {
 
         await createService({
             professionalId: service.professional_id,
+            categoryId: service.category_id,
             name: "Consultation",
             durationMinutes: 30,
             price: 1500,
@@ -133,6 +135,7 @@ describe("createService", () => {
             expect.any(String),
             [
                 service.professional_id,
+                service.category_id,
                 "Consultation",
                 null,
                 30,
@@ -149,6 +152,7 @@ describe("createService", () => {
         await expect(
             createService({
                 professionalId: service.professional_id,
+                categoryId: service.category_id,
                 name: "Consultation",
                 durationMinutes: 30,
                 price: 1500,
@@ -157,17 +161,18 @@ describe("createService", () => {
     });
 });
 
-
 describe("findActiveServicesByProfessionalId", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("returns active services for a professional", async () => {
+    it("returns active services with their categories for a professional", async () => {
         const services = [
             {
                 service_id: service.service_id,
                 professional_id: service.professional_id,
+                category_id: service.category_id,
+                category_name: "Beauty & personal care",
                 name: "Consultation",
                 description: "A 30-minute consultation",
                 duration_minutes: 30,
@@ -186,8 +191,16 @@ describe("findActiveServicesByProfessionalId", () => {
         );
 
         expect(result).toEqual(services);
+        expect(queryMock).toHaveBeenCalledOnce();
+
+        const sql = queryMock.mock.calls[0]?.[0] as string;
+
+        expect(sql).toContain("LEFT JOIN service_categories");
+        expect(sql).toContain("c.name AS category_name");
+        expect(sql).toContain("s.is_active = TRUE");
+
         expect(queryMock).toHaveBeenCalledWith(
-            expect.stringContaining("is_active = TRUE"),
+            expect.any(String),
             [service.professional_id],
         );
     });
@@ -205,7 +218,6 @@ describe("findActiveServicesByProfessionalId", () => {
     });
 });
 
-
 describe("updateService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -215,6 +227,7 @@ describe("updateService", () => {
         const updatedService = {
             service_id: service.service_id,
             professional_id: service.professional_id,
+            category_id: service.category_id,
             name: "Extended Consultation",
             description: "A longer consultation",
             duration_minutes: 60,
@@ -230,6 +243,7 @@ describe("updateService", () => {
         const result = await updateService({
             serviceId: service.service_id,
             professionalId: service.professional_id,
+            categoryId: service.category_id,
             name: "Extended Consultation",
             description: "A longer consultation",
             durationMinutes: 60,
@@ -246,9 +260,12 @@ describe("updateService", () => {
         expect(sql).toContain("UPDATE services");
         expect(sql).toContain("professional_id = $2");
         expect(sql).toContain("is_active = TRUE");
+
         expect(values).toEqual([
             service.service_id,
             service.professional_id,
+            true,
+            service.category_id,
             true,
             "Extended Consultation",
             true,
@@ -257,6 +274,44 @@ describe("updateService", () => {
             60,
             true,
             2500,
+        ]);
+    });
+
+    it("supports updating only the category", async () => {
+        const newCategoryId = "d41be121-ada2-469a-b544-52910f404ead";
+
+        queryMock.mockResolvedValue({
+            rows: [
+                {
+                    ...service,
+                    category_id: newCategoryId,
+                    description: null,
+                    is_active: true,
+                },
+            ],
+        });
+
+        await updateService({
+            serviceId: service.service_id,
+            professionalId: service.professional_id,
+            categoryId: newCategoryId,
+        });
+
+        const values = queryMock.mock.calls[0]?.[1] as unknown[];
+
+        expect(values).toEqual([
+            service.service_id,
+            service.professional_id,
+            true,
+            newCategoryId,
+            false,
+            null,
+            false,
+            null,
+            false,
+            null,
+            false,
+            null,
         ]);
     });
 
@@ -296,12 +351,13 @@ describe("updateService", () => {
             null,
             false,
             null,
+            false,
+            null,
             true,
             2000,
         ]);
     });
 });
-
 
 describe("deactivateService", () => {
     beforeEach(() => {
@@ -312,6 +368,7 @@ describe("deactivateService", () => {
         const deactivatedService = {
             service_id: service.service_id,
             professional_id: service.professional_id,
+            category_id: service.category_id,
             name: service.name,
             description: null,
             duration_minutes: service.duration_minutes,

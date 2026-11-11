@@ -5,6 +5,7 @@ import type { PoolClient } from "pg";
 export type ProfessionalService = {
     service_id: string;
     professional_id: string;
+    category_id: string | null;
     name: string;
     description: string | null;
     duration_minutes: number;
@@ -34,6 +35,7 @@ export type PublicServiceFilters = {
 
 export type CreateServiceInput = {
     professionalId: string;
+    categoryId: string;
     name: string;
     description?: string | null;
     durationMinutes: number;
@@ -49,22 +51,24 @@ export type ServiceForBooking = {
     time_zone: string;
 };
 
-
 export type UpdateServiceInput = {
     serviceId: string;
     professionalId: string;
+    categoryId?: string;
     name?: string;
     description?: string | null;
     durationMinutes?: number;
     price?: number;
 };
 
+export type ProfessionalServiceWithCategory = ProfessionalService & {
+    category_name: string | null;
+};
 
 export async function findActiveServiceById(
     serviceId: string,
     client?: PoolClient,
 ): Promise<ServiceForBooking | null> {
-
     const db = client ?? pool;
 
     const result = await db.query<ServiceForBooking>(
@@ -95,15 +99,17 @@ export async function createService(
         `
         INSERT INTO services (
             professional_id,
+            category_id,
             name,
             description,
             duration_minutes,
             price
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
             service_id,
             professional_id,
+            category_id,
             name,
             description,
             duration_minutes,
@@ -113,6 +119,7 @@ export async function createService(
         `,
         [
             input.professionalId,
+            input.categoryId,
             input.name,
             input.description ?? null,
             input.durationMinutes,
@@ -129,32 +136,35 @@ export async function createService(
     return service;
 }
 
-
 export async function findActiveServicesByProfessionalId(
     professionalId: string,
-): Promise<ProfessionalService[]> {
-    const result = await pool.query<ProfessionalService>(
+): Promise<ProfessionalServiceWithCategory[]> {
+    const result = await pool.query<ProfessionalServiceWithCategory>(
         `
         SELECT
-            service_id,
-            professional_id,
-            name,
-            description,
-            duration_minutes,
-            price,
-            is_active,
-            created_at
-        FROM services
-        WHERE professional_id = $1
-          AND is_active = TRUE
-        ORDER BY created_at DESC, service_id DESC
+            s.service_id,
+            s.professional_id,
+            s.category_id,
+            c.name AS category_name,
+            s.name,
+            s.description,
+            s.duration_minutes,
+            s.price,
+            s.is_active,
+            s.created_at
+        FROM services AS s
+        LEFT JOIN service_categories AS c
+            ON c.category_id = s.category_id
+           AND c.is_active = TRUE
+        WHERE s.professional_id = $1
+          AND s.is_active = TRUE
+        ORDER BY s.created_at DESC, s.service_id DESC
         `,
         [professionalId],
     );
 
     return result.rows;
 }
-
 
 export async function updateService(
     input: UpdateServiceInput,
@@ -163,20 +173,24 @@ export async function updateService(
         `
         UPDATE services
         SET
+            category_id = CASE
+                WHEN $3::boolean THEN $4::uuid
+                ELSE category_id
+            END,
             name = CASE
-                WHEN $3::boolean THEN $4::varchar
+                WHEN $5::boolean THEN $6::varchar
                 ELSE name
             END,
             description = CASE
-                WHEN $5::boolean THEN $6::text
+                WHEN $7::boolean THEN $8::text
                 ELSE description
             END,
             duration_minutes = CASE
-                WHEN $7::boolean THEN $8::integer
+                WHEN $9::boolean THEN $10::integer
                 ELSE duration_minutes
             END,
             price = CASE
-                WHEN $9::boolean THEN $10::numeric
+                WHEN $11::boolean THEN $12::numeric
                 ELSE price
             END
         WHERE service_id = $1
@@ -185,6 +199,7 @@ export async function updateService(
         RETURNING
             service_id,
             professional_id,
+            category_id,
             name,
             description,
             duration_minutes,
@@ -195,6 +210,8 @@ export async function updateService(
         [
             input.serviceId,
             input.professionalId,
+            input.categoryId !== undefined,
+            input.categoryId ?? null,
             input.name !== undefined,
             input.name ?? null,
             input.description !== undefined,
@@ -208,7 +225,6 @@ export async function updateService(
 
     return result.rows[0] ?? null;
 }
-
 
 export async function deactivateService(
     serviceId: string,
@@ -224,6 +240,7 @@ export async function deactivateService(
         RETURNING
             service_id,
             professional_id,
+            category_id,
             name,
             description,
             duration_minutes,
@@ -236,7 +253,6 @@ export async function deactivateService(
 
     return result.rows[0] ?? null;
 }
-
 
 export async function findPublicServices(
     filters: PublicServiceFilters = {},
@@ -263,17 +279,13 @@ export async function findPublicServices(
             ON p.profile_id = s.professional_id
         LEFT JOIN service_categories AS c
             ON c.category_id = s.category_id
+           AND c.is_active = TRUE
         WHERE s.is_active = TRUE
-          AND (s.category_id IS NULL OR c.is_active = TRUE)
-          AND (
-              $1::text IS NULL
-              OR s.name ILIKE '%' || $1 || '%'
-              OR COALESCE(s.description, '') ILIKE '%' || $1 || '%'
-          )
-          AND (
-              $2::text IS NULL
-              OR (c.slug = $2 AND c.is_active = TRUE)
-          )
+          AND ($1::text IS NULL OR (
+              s.name ILIKE '%' || $1 || '%'
+              OR s.description ILIKE '%' || $1 || '%'
+          ))
+          AND ($2::text IS NULL OR c.slug = $2)
         ORDER BY s.created_at DESC, s.service_id DESC
         `,
         [search, category],
