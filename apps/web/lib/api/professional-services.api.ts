@@ -5,6 +5,8 @@ import type { ApiResponse } from "@/types/api";
 export type ProfessionalService = {
     service_id: string;
     professional_id: string;
+    category_id: string | null;
+    category_name?: string | null;
     name: string;
     description: string | null;
     duration_minutes: number;
@@ -14,6 +16,7 @@ export type ProfessionalService = {
 };
 
 export type CreateProfessionalServiceInput = {
+    categoryId: string;
     name: string;
     description?: string | null;
     durationMinutes: number;
@@ -21,6 +24,7 @@ export type CreateProfessionalServiceInput = {
 };
 
 export type UpdateProfessionalServiceInput = {
+    categoryId?: string;
     name?: string;
     description?: string | null;
     durationMinutes?: number;
