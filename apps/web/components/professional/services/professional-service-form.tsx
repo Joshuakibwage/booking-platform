@@ -27,6 +27,10 @@ const RING_MAX_MINUTES = 120;
 
 type ProfessionalServiceFormProps = {
     initialValues?: ProfessionalServiceFormValues;
+    currentCategory?: {
+        id: string;
+        name: string;
+    };
     onSubmit: (values: ProfessionalServiceFormValues) => Promise<void>;
     submitLabel?: string;
     errorMessage?: string | null;
@@ -74,6 +78,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function ProfessionalServiceForm({
     initialValues = defaultValues,
+    currentCategory,
     onSubmit,
     submitLabel = "Create service",
     errorMessage,
@@ -86,6 +91,12 @@ export function ProfessionalServiceForm({
         isLoading: isLoadingCategories,
         isError: isCategoriesError,
     } = usePublicServiceCategories();
+
+    const isCurrentCategoryInactive =
+        currentCategory !== undefined &&
+        !categories.some(
+            (category) => category.category_id === currentCategory.id,
+        );
 
     const {
         register,
@@ -241,6 +252,12 @@ export function ProfessionalServiceForm({
                             ? "Loading categories..."
                             : "Select a category"}
                     </option>
+
+                    {isCurrentCategoryInactive && currentCategory && (
+                        <option value={currentCategory.id}>
+                            {currentCategory.name} (inactive)
+                        </option>
+                    )}
 
                     {categories.map((category) => (
                         <option

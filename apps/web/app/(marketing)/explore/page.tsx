@@ -2,25 +2,7 @@ import { Suspense } from "react";
 
 import { ExploreServices } from "@/components/marketing/explore/explore-services";
 
-type ExplorePageProps = {
-    searchParams: Promise<{
-        category?: string | string[];
-    }>;
-};
-
-async function ExplorePageContent({
-    searchParams,
-}: ExplorePageProps) {
-    const { category } = await searchParams;
-
-    const initialCategory = Array.isArray(category)
-        ? (category[0] ?? null)
-        : (category ?? null);
-
-    return <ExploreServices initialCategory={initialCategory} />;
-}
-
-export default function ExplorePage(props: ExplorePageProps) {
+export default function ExplorePage() {
     return (
         <Suspense
             fallback={
@@ -39,7 +21,7 @@ export default function ExplorePage(props: ExplorePageProps) {
                 </section>
             }
         >
-            <ExplorePageContent searchParams={props.searchParams} />
+            <ExploreServices />
         </Suspense>
     );
 }

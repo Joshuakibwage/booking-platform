@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
     usePathname,
-    useRouter,
     useSearchParams,
 } from "next/navigation";
 
@@ -23,13 +22,9 @@ import { PublicServiceCard } from "@/components/marketing/cards/public-service-c
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-type ExploreServicesProps = {
-    initialCategory: string | null;
-};
 
-export function ExploreServices(_props: ExploreServicesProps) {
+export function ExploreServices() {
     // 1. Router and environment
-    const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const reduce = useReducedMotion();
@@ -82,7 +77,7 @@ export function ExploreServices(_props: ExploreServicesProps) {
             ? `${pathname}?${queryString}`
             : pathname;
 
-        router.push(nextUrl, { scroll: false });
+        window.history.pushState(null, "", nextUrl);
     }
 
     // 7. Derived display values
