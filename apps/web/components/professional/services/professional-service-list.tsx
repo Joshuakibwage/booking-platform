@@ -140,11 +140,16 @@ export function ProfessionalServiceList({
         setErrorMessage(null);
 
         try {
+            const { categoryId, ...serviceValues } = values;
+
             await updateService.mutateAsync({
                 serviceId: selectedService.service_id,
                 input: {
-                    ...values,
+                    ...serviceValues,
                     description: values.description.trim() || null,
+                    ...(categoryId !== (selectedService.category_id ?? "")
+                        ? { categoryId }
+                        : {}),
                 },
             });
 
@@ -379,6 +384,16 @@ export function ProfessionalServiceList({
                             <ProfessionalServiceForm
                                 key={selectedService.service_id}
                                 initialValues={initialValues}
+                                currentCategory={
+                                    selectedService.category_id
+                                        ? {
+                                            id: selectedService.category_id,
+                                            name:
+                                                selectedService.category_name ??
+                                                "Current category",
+                                        }
+                                        : undefined
+                                }
                                 onSubmit={handleUpdateService}
                                 submitLabel="Save changes"
                                 errorMessage={errorMessage}
