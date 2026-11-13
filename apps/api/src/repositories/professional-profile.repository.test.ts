@@ -15,6 +15,7 @@ import {
     createProfessionalProfile,
     updateProfessionalProfile,
     findProfessionalProfileById,
+    findProfessionalProfileByUserId,
 } from "./professional-profile.repository.js";
 
 const profile = {
@@ -229,6 +230,36 @@ describe("findProfessionalProfileById", () => {
         const result = await findProfessionalProfileById(
             profile.profile_id,
         );
+
+        expect(result).toBeNull();
+    });
+});
+
+
+describe("findProfessionalProfileByUserId", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("returns the authenticated user's professional profile", async () => {
+        const authenticatedProfile = {
+            ...profile,
+            image_url: "https://res.cloudinary.com/example/profile.jpg",
+        };
+
+        queryMock.mockResolvedValue({ rows: [authenticatedProfile] });
+
+        const result = await findProfessionalProfileByUserId(profile.user_id);
+
+        expect(result).toEqual(authenticatedProfile);
+        expect(queryMock).toHaveBeenCalledWith(
+            expect.stringContaining("WHERE user_id = $1"),
+            [profile.user_id],
+        );
+    });
+
+    it("returns null when the user has no professional profile", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        const result = await findProfessionalProfileByUserId(profile.user_id);
 
         expect(result).toBeNull();
     });

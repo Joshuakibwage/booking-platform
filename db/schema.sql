@@ -1,6 +1,6 @@
 \restrict dbmate
 
--- Dumped from database version 18.6 (ac70818)
+-- Dumped from database version 18.7 (a21afb5)
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-1.pgdg24.04+2)
 
 SET statement_timeout = 0;
@@ -84,8 +84,12 @@ CREATE TABLE public.professional_profiles (
     bio text,
     time_zone character varying(100) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    public_name character varying(100) NOT NULL
+    public_name character varying(100) NOT NULL,
+    image_url text,
+    image_public_id character varying(255)
 );
+ALTER TABLE ONLY public.professional_profiles ALTER COLUMN image_url SET (pg_attver=34664304);
+ALTER TABLE ONLY public.professional_profiles ALTER COLUMN image_public_id SET (pg_attver=34664752);
 
 
 --
@@ -391,4 +395,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261020113213'),
     ('20261026074201'),
     ('20261108100628'),
-    ('20261110081838');
+    ('20261110081838'),
+    ('20261113071416');
