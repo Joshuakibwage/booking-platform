@@ -20,6 +20,7 @@ export const navigationConfig = {
     { label: "Services", href: "/professional/services" },
     { label: "Availability", href: "/professional/availability" },
     { label: "Bookings", href: "/professional/bookings" },
+    { label: "Settings", href: "/professional/settings" },
   ],
 };
 
