@@ -1,8 +1,10 @@
+
 export const queryKeys = {
     auth: {
         currentUser: ["auth", "current-user"],
     },
     professional: {
+        profile: ["professional", "profile"],
         services: ["professional", "services"],
         weeklyAvailability: ["professional", "weekly-availability"],
         availabilityExceptions: ["professional", "availability-exceptions"],
