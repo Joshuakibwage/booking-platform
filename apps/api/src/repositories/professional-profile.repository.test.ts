@@ -16,6 +16,7 @@ import {
     updateProfessionalProfile,
     findProfessionalProfileById,
     findProfessionalProfileByUserId,
+    findPublicProfessionals,
 } from "./professional-profile.repository.js";
 
 const profile = {
@@ -262,5 +263,112 @@ describe("findProfessionalProfileByUserId", () => {
         const result = await findProfessionalProfileByUserId(profile.user_id);
 
         expect(result).toBeNull();
+    });
+});
+
+
+describe("findPublicProfessionals", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns public profiles with active service counts", async () => {
+        const professionals = [
+            {
+                profile_id: profile.profile_id,
+                public_name: profile.public_name,
+                bio: profile.bio,
+                time_zone: profile.time_zone,
+                image_url: null,
+                service_count: 3,
+            },
+        ];
+
+        queryMock.mockResolvedValue({ rows: professionals });
+
+        const result = await findPublicProfessionals();
+
+        expect(result).toEqual(professionals);
+        expect(queryMock).toHaveBeenCalledOnce();
+
+        const query = queryMock.mock.calls[0]?.[0];
+
+        expect(query).toContain("FROM professional_profiles AS p");
+        expect(query).toContain("s.is_active = TRUE");
+        expect(query).toContain("COUNT(*)::integer");
+        expect(query).not.toContain("image_public_id");
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([null, null]);
+    });
+
+    it("searches by professional name and bio", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        await findPublicProfessionals({
+            search: "barber",
+        });
+
+        const query = queryMock.mock.calls[0]?.[0];
+
+        expect(query).toContain("p.public_name ILIKE");
+        expect(query).toContain("p.bio ILIKE");
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            "barber",
+            null,
+        ]);
+    });
+
+    it("filters professionals by active service category", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        await findPublicProfessionals({
+            category: "beauty-personal-care",
+        });
+
+        const query = queryMock.mock.calls[0]?.[0];
+
+        expect(query).toContain("c.is_active = TRUE");
+        expect(query).toContain("c.slug = $2");
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            null,
+            "beauty-personal-care",
+        ]);
+    });
+
+    it("supports search and category filters together", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        await findPublicProfessionals({
+            search: "barber",
+            category: "beauty-personal-care",
+        });
+
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            "barber",
+            "beauty-personal-care",
+        ]);
+    });
+
+    it("trims whitespace from filters", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        await findPublicProfessionals({
+            search: "  barber  ",
+            category: "  beauty-personal-care  ",
+        });
+
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            "barber",
+            "beauty-personal-care",
+        ]);
+    });
+
+    it("returns an empty array when no professionals match", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        const result = await findPublicProfessionals({
+            search: "nonexistent",
+        });
+
+        expect(result).toEqual([]);
     });
 });

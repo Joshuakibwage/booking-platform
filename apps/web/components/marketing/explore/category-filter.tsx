@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useId, type ReactNode } from "react";
@@ -10,6 +11,8 @@ type CategoryFilterProps = {
     categories: PublicServiceCategory[];
     selectedCategory: string | null;
     onCategoryChange: (category: string | null) => void;
+    ariaLabel?: string;
+    allLabel?: string;
 };
 
 type FilterPillProps = {
@@ -34,13 +37,14 @@ function FilterPill({
             aria-pressed={selected}
             whileTap={reduce ? undefined : { scale: 0.96 }}
             className={cn(
-                "relative shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background cursor-pointer",
+                "relative shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "focus-visible:ring-offset-2 focus-visible:ring-offset-background cursor-pointer",
                 selected
                     ? "border-foreground text-background"
-                    : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
             )}
         >
-            {/* One highlight that slides to whichever pill is selected */}
             {selected && (
                 <motion.span
                     layoutId={highlightId}
@@ -63,13 +67,15 @@ export function CategoryFilter({
     categories,
     selectedCategory,
     onCategoryChange,
+    ariaLabel = "Filter services by category",
+    allLabel = "All services",
 }: CategoryFilterProps) {
     const highlightId = useId();
 
     return (
         <div
             role="group"
-            aria-label="Filter services by category"
+            aria-label={ariaLabel}
             className="flex gap-2 overflow-x-auto p-1 pb-2"
         >
             <FilterPill
@@ -77,7 +83,7 @@ export function CategoryFilter({
                 highlightId={highlightId}
                 onClick={() => onCategoryChange(null)}
             >
-                All services
+                {allLabel}
             </FilterPill>
 
             {categories.map((category) => (

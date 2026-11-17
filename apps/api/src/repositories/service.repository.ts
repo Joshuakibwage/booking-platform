@@ -31,6 +31,7 @@ export type PublicService = {
 export type PublicServiceFilters = {
     search?: string;
     category?: string;
+    professionalId?: string;
 };
 
 export type CreateServiceInput = {
@@ -254,11 +255,13 @@ export async function deactivateService(
     return result.rows[0] ?? null;
 }
 
+
 export async function findPublicServices(
     filters: PublicServiceFilters = {},
 ): Promise<PublicService[]> {
     const search = filters.search?.trim() || null;
     const category = filters.category?.trim() || null;
+    const professionalId = filters.professionalId?.trim() || null;
 
     const result = await pool.query<PublicService>(
         `
@@ -286,9 +289,10 @@ export async function findPublicServices(
               OR s.description ILIKE '%' || $1 || '%'
           ))
           AND ($2::text IS NULL OR c.slug = $2)
+          AND ($3::uuid IS NULL OR s.professional_id = $3::uuid)
         ORDER BY s.created_at DESC, s.service_id DESC
         `,
-        [search, category],
+        [search, category, professionalId],
     );
 
     return result.rows;
