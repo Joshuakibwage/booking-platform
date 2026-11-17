@@ -29,6 +29,28 @@ export type PublicServiceCategory = {
 export type PublicServiceFilters = {
     search?: string;
     category?: string;
+    professionalId?: string;
+};
+
+export type PublicProfessional = {
+    profile_id: string;
+    public_name: string;
+    bio: string | null;
+    time_zone: string;
+    image_url: string | null;
+    service_count: number;
+};
+
+export type PublicProfessionalFilters = {
+    search?: string;
+    category?: string;
+};
+
+export type PublicProfessionalProfile = Omit<
+    PublicProfessional,
+    "service_count"
+> & {
+    created_at: string;
 };
 
 export async function getPublicServices(
@@ -47,6 +69,27 @@ export async function getPublicServiceCategories(): Promise<
 > {
     const response = await api.get<ApiResponse<PublicServiceCategory[]>>(
         "/categories",
+    );
+
+    return response.data.data;
+}
+
+export async function getPublicProfessionals(
+    filters: PublicProfessionalFilters = {},
+): Promise<PublicProfessional[]> {
+    const response = await api.get<ApiResponse<PublicProfessional[]>>(
+        "/professionals",
+        { params: filters },
+    );
+
+    return response.data.data;
+}
+
+export async function getPublicProfessionalProfile(
+    professionalId: string,
+): Promise<PublicProfessionalProfile> {
+    const response = await api.get<ApiResponse<PublicProfessionalProfile>>(
+        `/professionals/${professionalId}/profile`,
     );
 
     return response.data.data;

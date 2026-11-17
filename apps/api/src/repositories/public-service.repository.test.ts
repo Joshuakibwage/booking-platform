@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { queryMock } = vi.hoisted(() => ({
@@ -13,6 +14,8 @@ vi.mock("../db.js", () => ({
 import { findPublicServices } from "./service.repository.js";
 
 describe("findPublicServices", () => {
+    const professionalId = "550e8400-e29b-41d4-a716-446655440000";
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -21,7 +24,7 @@ describe("findPublicServices", () => {
         const services = [
             {
                 service_id: "service-1",
-                professional_id: "professional-1",
+                professional_id: professionalId,
                 category_id: "category-1",
                 name: "Haircut",
                 description: "Professional haircut service",
@@ -49,7 +52,15 @@ describe("findPublicServices", () => {
         expect(query).toContain(
             "ORDER BY s.created_at DESC, s.service_id DESC",
         );
-        expect(queryMock.mock.calls[0]?.[1]).toEqual([null, null]);
+        expect(query).toContain(
+            "s.professional_id = $3::uuid",
+        );
+
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            null,
+            null,
+            null,
+        ]);
     });
 
     it("filters services by search term", async () => {
@@ -61,6 +72,7 @@ describe("findPublicServices", () => {
 
         expect(queryMock.mock.calls[0]?.[1]).toEqual([
             "haircut",
+            null,
             null,
         ]);
     });
@@ -75,34 +87,51 @@ describe("findPublicServices", () => {
         expect(queryMock.mock.calls[0]?.[1]).toEqual([
             null,
             "beauty-personal-care",
+            null,
         ]);
     });
 
-    it("supports search and category filters together", async () => {
+    it("filters services by professional ID", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        await findPublicServices({ professionalId });
+
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([
+            null,
+            null,
+            professionalId,
+        ]);
+    });
+
+    it("supports all three filters together", async () => {
         queryMock.mockResolvedValue({ rows: [] });
 
         await findPublicServices({
             search: "haircut",
             category: "beauty-personal-care",
+            professionalId,
         });
 
         expect(queryMock.mock.calls[0]?.[1]).toEqual([
             "haircut",
             "beauty-personal-care",
+            professionalId,
         ]);
     });
 
-    it("trims whitespace from search and category filters", async () => {
+    it("trims whitespace from filters", async () => {
         queryMock.mockResolvedValue({ rows: [] });
 
         await findPublicServices({
             search: "  haircut  ",
             category: "  beauty-personal-care  ",
+            professionalId: `  ${professionalId}  `,
         });
 
         expect(queryMock.mock.calls[0]?.[1]).toEqual([
             "haircut",
             "beauty-personal-care",
+            professionalId,
         ]);
     });
 

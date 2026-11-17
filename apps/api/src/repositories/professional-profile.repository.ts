@@ -1,5 +1,6 @@
 
 import pool from "../db.js";
+import type { PublicProfessionalFilters } from "../validators/public-professional.validator.js";
 
 export type ProfessionalProfile = {
     profile_id: string;
@@ -153,6 +154,15 @@ export type PublicProfessionalProfile = {
     created_at: Date;
 };
 
+export type PublicProfessionalProfileSummary = {
+    profile_id: string;
+    public_name: string;
+    bio: string | null;
+    time_zone: string;
+    image_url: string | null;
+    service_count: number;
+};
+
 export async function findProfessionalProfileById(
     profileId: string,
 ): Promise<PublicProfessionalProfile | null> {
@@ -211,4 +221,55 @@ export async function updateProfessionalProfileImage(
     );
 
     return result.rows[0] ?? null;
+}
+
+
+export async function findPublicProfessionals(
+    filters: PublicProfessionalFilters = {},
+): Promise<PublicProfessionalProfileSummary[]> {
+    const search = filters.search?.trim() || null;
+    const category = filters.category?.trim() || null;
+
+    const result = await pool.query<PublicProfessionalProfileSummary>(
+        `
+        SELECT
+            p.profile_id,
+            p.public_name,
+            p.bio,
+            p.time_zone,
+            p.image_url,
+            (
+                SELECT COUNT(*)::integer
+                FROM services AS count_s
+                WHERE count_s.professional_id = p.profile_id
+                  AND count_s.is_active = TRUE
+            ) AS service_count
+        FROM professional_profiles AS p
+        WHERE EXISTS (
+            SELECT 1
+            FROM services AS s
+            WHERE s.professional_id = p.profile_id
+              AND s.is_active = TRUE
+              AND (
+                  $2::text IS NULL
+                  OR EXISTS (
+                      SELECT 1
+                      FROM service_categories AS c
+                      WHERE c.category_id = s.category_id
+                        AND c.is_active = TRUE
+                        AND c.slug = $2
+                  )
+              )
+        )
+          AND (
+              $1::text IS NULL
+              OR p.public_name ILIKE '%' || $1 || '%'
+              OR p.bio ILIKE '%' || $1 || '%'
+          )
+        ORDER BY p.created_at DESC, p.profile_id DESC
+        `,
+        [search, category],
+    );
+
+    return result.rows;
 }

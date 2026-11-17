@@ -209,7 +209,7 @@ describe("GET /services", () => {
             data: services,
         });
         expect(queryMock).toHaveBeenCalledOnce();
-        expect(queryMock.mock.calls[0]?.[1]).toEqual([null, null]);
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([null, null, null]);
     });
 
     it("should pass search and category filters to the repository", async () => {
@@ -227,6 +227,7 @@ describe("GET /services", () => {
         expect(queryMock.mock.calls[0]?.[1]).toEqual([
             "haircut",
             "beauty-personal-care",
+            null,
         ]);
     });
 

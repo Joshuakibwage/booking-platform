@@ -4,6 +4,7 @@ import type { Router as ExpressRouter } from "express";
 
 import { getAvailability } from "../controllers/availability.controller.js";
 import { getProfessionalBookings } from "../controllers/professional-bookings.controller.js";
+import { getPublicProfessionalsHandler } from "../controllers/public-professional.controller.js";
 
 import {
     createProfessionalProfileHandler,
@@ -39,8 +40,14 @@ import {
 
 const router: ExpressRouter = Router();
 
-router.get("/:professionalId/availability", getAvailability);
+// Public professional directory
+router.get("/", getPublicProfessionalsHandler);
 
+// Public professional routes
+router.get("/:professionalId/availability", getAvailability);
+router.get("/:professionalId/profile", getProfessionalProfileHandler);
+
+// Professional bookings
 router.get("/bookings", requireAuth, getProfessionalBookings);
 
 // Professional profile
@@ -53,8 +60,6 @@ router.get(
 );
 
 router.patch("/profile", requireAuth, updateProfessionalProfileHandler);
-
-router.get("/:professionalId/profile", getProfessionalProfileHandler);
 
 // Professional profile image
 router.post(

@@ -10,8 +10,20 @@ export const queryKeys = {
         availabilityExceptions: ["professional", "availability-exceptions"],
     },
     public: {
-        services: (filters: { search?: string; category?: string }) =>
-            ["public", "services", filters] as const,
+        services: (filters: {
+            search?: string;
+            category?: string;
+            professionalId?: string;
+        }) => ["public", "services", filters] as const,
+
         serviceCategories: ["public", "service-categories"] as const,
+
+        professionals: (filters: {
+            search?: string;
+            category?: string;
+        }) => ["public", "professionals", filters] as const,
+
+        professionalProfile: (professionalId: string) =>
+            ["public", "professional-profile", professionalId] as const,
     },
 } as const;
