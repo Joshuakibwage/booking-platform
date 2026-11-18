@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import {
   MotionConfig,
   useMotionValueEvent,
@@ -134,7 +134,9 @@ export function AppNavbar({ context }: AppNavbarProps) {
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <NavbarBrand />
 
-            <DesktopNavigation context={navigationContext} />
+            <Suspense fallback={null}>
+              <DesktopNavigation context={navigationContext} />
+            </Suspense>
 
             <div className="flex items-center gap-2">
               <NavbarActions
@@ -147,15 +149,17 @@ export function AppNavbar({ context }: AppNavbarProps) {
                 onLogout={() => void handleLogout()}
                />
 
-              <MobileNavigation
-                context={navigationContext}
-                currentUser={currentUser}
-                isUserLoading={isUserLoading}
-                isLoggingOut={logoutMutation.isPending}
-                logoutError={logoutError}
-                onAuthOpen={handleAuthOpen}
-                onLogout={handleLogout}
-              />
+              <Suspense fallback={null}>
+                <MobileNavigation
+                  context={navigationContext}
+                  currentUser={currentUser}
+                  isUserLoading={isUserLoading}
+                  isLoggingOut={logoutMutation.isPending}
+                  logoutError={logoutError}
+                  onAuthOpen={handleAuthOpen}
+                  onLogout={handleLogout}
+                />
+              </Suspense>
             </div>
           </div>
         </header>
