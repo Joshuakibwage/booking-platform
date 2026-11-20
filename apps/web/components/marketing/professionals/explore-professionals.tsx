@@ -190,18 +190,27 @@ export function ExploreProfessionals() {
                         <div
                             role="status"
                             aria-live="polite"
-                            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                         >
                             <span className="sr-only">
                                 Loading professionals...
                             </span>
 
-                            {Array.from({ length: 6 }).map((_, index) => (
+                            {Array.from({ length: 8 }).map((_, index) => (
                                 <div
                                     key={index}
                                     aria-hidden="true"
-                                    className="h-48 animate-pulse rounded-xl bg-muted motion-reduce:animate-none"
-                                />
+                                    className="overflow-hidden rounded-xl border border-border"
+                                >
+                                    <div className="aspect-[4/3] animate-pulse bg-muted motion-reduce:animate-none" />
+
+                                    <div className="space-y-3 p-4">
+                                        <div className="h-5 w-3/4 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                                        <div className="h-3 w-1/3 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                                        <div className="h-4 w-full animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                                        <div className="h-4 w-2/3 animate-pulse rounded bg-muted motion-reduce:animate-none" />
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     ) : isProfessionalsError ? (
@@ -235,7 +244,7 @@ export function ExploreProfessionals() {
                         </motion.div>
                     ) : (
                         <motion.div
-                            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                             variants={grid}
                             initial="hidden"
                             animate="show"

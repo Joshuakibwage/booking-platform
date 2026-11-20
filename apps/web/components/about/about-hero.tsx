@@ -31,7 +31,7 @@ export function AboutHero() {
                         id="about-heading"
                         className="text-balance text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl lg:text-7xl"
                     >
-                        <span className="block overflow-hidden pb-[0.12em] -mb-[0.12em]">
+                        <span className="block overflow-hidden pb-[0.12em] mb-[0.12em]">
                             <span className="about-rise block">{heading}</span>
                         </span>
                     </h1>
@@ -46,7 +46,7 @@ export function AboutHero() {
 
                 {/* Image composition: arch + clover mask + quarter-circle, as on the home page */}
                 <div className="lg:col-span-5">
-                    <div className="relative mx-auto aspect-[4/5] w-full max-w-sm sm:max-w-md lg:ml-auto lg:mr-0">
+                    <div className="relative mx-auto aspect-4/5 w-full max-w-sm sm:max-w-md lg:ml-auto lg:mr-0">
                         <div
                             aria-hidden="true"
                             className="absolute bottom-0 left-0 aspect-square w-[40%] rounded-tr-full bg-primary"

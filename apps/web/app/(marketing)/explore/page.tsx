@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { ExploreServices } from "@/components/marketing/explore/explore-services";
+import { ExploreProfessionals } from "@/components/marketing/professionals/explore-professionals";
 
 export default function ExplorePage() {
     return (
@@ -21,7 +21,7 @@ export default function ExplorePage() {
                 </section>
             }
         >
-            <ExploreServices />
+            <ExploreProfessionals />
         </Suspense>
     );
 }
