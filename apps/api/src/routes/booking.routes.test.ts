@@ -1,15 +1,25 @@
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+    describe,
+    it,
+    expect,
+    vi,
+    beforeEach,
+} from "vitest";
 import request from "supertest";
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
 
 const {
     createBookingMock,
     cancelBookingByIdMock,
     rescheduleBookingByIdMock,
+    findProfessionalProfileIdByUserIdMock,
 } = vi.hoisted(() => ({
     createBookingMock: vi.fn(),
     cancelBookingByIdMock: vi.fn(),
     rescheduleBookingByIdMock: vi.fn(),
+    findProfessionalProfileIdByUserIdMock: vi.fn(),
 }));
 
 vi.mock("../services/booking.service.js", () => ({
@@ -18,7 +28,33 @@ vi.mock("../services/booking.service.js", () => ({
     rescheduleBookingById: rescheduleBookingByIdMock,
 }));
 
-import app from "../app.js";
+vi.mock("../repositories/professional-profile.repository.js", () => ({
+    findProfessionalProfileIdByUserId:
+        findProfessionalProfileIdByUserIdMock,
+}));
+
+import bookingRouter from "./booking.routes.js";
+
+const userId = "550e8400-e29b-41d4-a716-446655440000";
+const professionalProfileId = "7ba7b810-9dad-41d1-80b4-00c04fd430c8";
+const serviceId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+const app = express();
+
+app.use(express.json());
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+    req.session = { user: { userId } } as Request["session"];
+    next();
+});
+
+app.use("/bookings", bookingRouter);
+
+beforeEach(() => {
+    findProfessionalProfileIdByUserIdMock.mockResolvedValue(
+        professionalProfileId,
+    );
+});
 
 describe("POST /bookings", () => {
     beforeEach(() => {
@@ -28,7 +64,10 @@ describe("POST /bookings", () => {
     it("rejects an invalid request with 400", async () => {
         const response = await request(app)
             .post("/bookings")
-            .send({ customerId: "invalid" });
+            .send({
+                serviceId: "invalid",
+                startTime: "2026-11-02T09:00:00+03:00",
+            });
 
         expect(response.status).toBe(400);
         expect(response.body).toEqual({
@@ -42,8 +81,8 @@ describe("POST /bookings", () => {
     it("creates a booking and returns 201", async () => {
         const booking = {
             booking_id: "booking-123",
-            customer_id: "550e8400-e29b-41d4-a716-446655440000",
-            service_id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+            customer_id: userId,
+            service_id: serviceId,
             status: "confirmed",
         };
 
@@ -55,8 +94,7 @@ describe("POST /bookings", () => {
         const response = await request(app)
             .post("/bookings")
             .send({
-                customerId: "550e8400-e29b-41d4-a716-446655440000",
-                serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                serviceId,
                 startTime: "2026-11-02T09:00:00+03:00",
             });
 
@@ -67,8 +105,8 @@ describe("POST /bookings", () => {
         });
 
         expect(createBookingMock).toHaveBeenCalledWith({
-            customerId: "550e8400-e29b-41d4-a716-446655440000",
-            serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+            customerId: userId,
+            serviceId,
             startTime: "2026-11-02T09:00:00+03:00",
         });
     });
@@ -82,8 +120,7 @@ describe("POST /bookings", () => {
         const response = await request(app)
             .post("/bookings")
             .send({
-                customerId: "550e8400-e29b-41d4-a716-446655440000",
-                serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                serviceId,
                 startTime: "2026-11-02T09:00:00+03:00",
             });
 
@@ -100,8 +137,7 @@ describe("POST /bookings", () => {
         const response = await request(app)
             .post("/bookings")
             .send({
-                customerId: "550e8400-e29b-41d4-a716-446655440000",
-                serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                serviceId,
                 startTime: "2026-11-02T09:00:00+03:00",
             });
 
@@ -118,8 +154,7 @@ describe("POST /bookings", () => {
         const response = await request(app)
             .post("/bookings")
             .send({
-                customerId: "550e8400-e29b-41d4-a716-446655440000",
-                serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                serviceId,
                 startTime: "2026-11-02T09:00:00+03:00",
             });
 
@@ -136,8 +171,7 @@ describe("POST /bookings", () => {
         const response = await request(app)
             .post("/bookings")
             .send({
-                customerId: "550e8400-e29b-41d4-a716-446655440000",
-                serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+                serviceId,
                 startTime: "2026-11-02T09:00:00+03:00",
             });
 
@@ -148,9 +182,13 @@ describe("POST /bookings", () => {
 
 describe("PATCH /bookings/:bookingId/cancel", () => {
     const bookingId = "9ba7b810-9dad-41d1-80b4-00c04fd430c8";
+    const actor = { userId, professionalProfileId };
 
     beforeEach(() => {
         cancelBookingByIdMock.mockReset();
+        findProfessionalProfileIdByUserIdMock.mockResolvedValue(
+            professionalProfileId,
+        );
     });
 
     it("returns 400 when the booking ID is invalid", async () => {
@@ -186,7 +224,13 @@ describe("PATCH /bookings/:bookingId/cancel", () => {
             data: booking,
         });
 
-        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(findProfessionalProfileIdByUserIdMock).toHaveBeenCalledWith(
+            userId,
+        );
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            actor,
+        );
     });
 
     it("returns 404 when the booking does not exist", async () => {
@@ -204,7 +248,10 @@ describe("PATCH /bookings/:bookingId/cancel", () => {
             message: "booking_not_found",
         });
 
-        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            actor,
+        );
     });
 
     it("returns 409 when the booking cannot be cancelled", async () => {
@@ -222,24 +269,30 @@ describe("PATCH /bookings/:bookingId/cancel", () => {
             message: "booking_not_cancellable",
         });
 
-        expect(cancelBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(cancelBookingByIdMock).toHaveBeenCalledWith(
+            bookingId,
+            actor,
+        );
     });
 });
 
-
-
 describe("PATCH /bookings/:bookingId/reschedule", () => {
     const bookingId = "9ba7b810-9dad-41d1-80b4-00c04fd430c8";
+    const actor = { userId, professionalProfileId };
+    const newStartTime = "2026-11-02T10:00:00+03:00";
 
     beforeEach(() => {
         rescheduleBookingByIdMock.mockReset();
+        findProfessionalProfileIdByUserIdMock.mockResolvedValue(
+            professionalProfileId,
+        );
     });
 
     it("returns 400 when the booking ID is invalid", async () => {
         const response = await request(app)
             .patch("/bookings/not-a-uuid/reschedule")
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(400);
@@ -251,7 +304,6 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         expect(rescheduleBookingByIdMock).not.toHaveBeenCalled();
     });
 
-    
     it("returns 400 when the rescheduling request body is invalid", async () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
@@ -267,7 +319,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
 
         expect(rescheduleBookingByIdMock).not.toHaveBeenCalled();
     });
-    
+
     it("reschedules a booking and returns 200", async () => {
         const booking = {
             booking_id: bookingId,
@@ -284,7 +336,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(200);
@@ -297,9 +349,13 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
             },
         });
 
+        expect(findProfessionalProfileIdByUserIdMock).toHaveBeenCalledWith(
+            userId,
+        );
         expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
             bookingId,
-            "2026-11-02T10:00:00+03:00",
+            newStartTime,
+            actor,
         );
     });
 
@@ -312,7 +368,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(404);
@@ -323,7 +379,8 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
 
         expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
             bookingId,
-            "2026-11-02T10:00:00+03:00",
+            newStartTime,
+            actor,
         );
     });
 
@@ -336,7 +393,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(409);
@@ -347,7 +404,8 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
 
         expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
             bookingId,
-            "2026-11-02T10:00:00+03:00",
+            newStartTime,
+            actor,
         );
     });
 
@@ -360,7 +418,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(409);
@@ -371,7 +429,8 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
 
         expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
             bookingId,
-            "2026-11-02T10:00:00+03:00",
+            newStartTime,
+            actor,
         );
     });
 
@@ -384,7 +443,7 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
         const response = await request(app)
             .patch(`/bookings/${bookingId}/reschedule`)
             .send({
-                startTime: "2026-11-02T10:00:00+03:00",
+                startTime: newStartTime,
             });
 
         expect(response.status).toBe(409);
@@ -395,7 +454,8 @@ describe("PATCH /bookings/:bookingId/reschedule", () => {
 
         expect(rescheduleBookingByIdMock).toHaveBeenCalledWith(
             bookingId,
-            "2026-11-02T10:00:00+03:00",
+            newStartTime,
+            actor,
         );
     });
 });

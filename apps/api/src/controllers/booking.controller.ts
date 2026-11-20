@@ -7,6 +7,8 @@ import {
     rescheduleBookingById,
 } from "../services/booking.service.js";
 
+import { findProfessionalProfileIdByUserId } from "../repositories/professional-profile.repository.js";
+
 import { validateBookingInput } from "../validators/booking.validator.js";
 import { validateBookingId } from "../validators/cancel-booking.validator.js";
 import { validateRescheduleBookingInput } from "../validators/reschedule-booking.validator.js";
@@ -25,7 +27,10 @@ export async function createBooking(
         return;
     }
 
-    const result = await createBookingService(input);
+    const result = await createBookingService({
+        ...input,
+        customerId: req.session.user!.userId,
+    });
 
     if (!result.ok) {
         switch (result.reason) {
@@ -69,7 +74,15 @@ export async function cancelBooking(
     }
 
     try {
-        const result = await cancelBookingById(bookingId);
+        const userId = req.session.user!.userId;
+
+        const professionalProfileId =
+            await findProfessionalProfileIdByUserId(userId);
+
+        const result = await cancelBookingById(bookingId, {
+            userId,
+            professionalProfileId,
+        });
 
         if (!result.ok) {
             const statusCode =
@@ -90,7 +103,6 @@ export async function cancelBooking(
         next(error);
     }
 }
-
 
 export async function rescheduleBooking(
     req: Request,
@@ -118,9 +130,17 @@ export async function rescheduleBooking(
     }
 
     try {
+        const userId = req.session.user!.userId;
+        const professionalProfileId =
+            await findProfessionalProfileIdByUserId(userId);
+
         const result = await rescheduleBookingById(
             bookingId,
             input.startTime,
+            {
+                userId,
+                professionalProfileId,
+            },
         );
 
         if (!result.ok) {

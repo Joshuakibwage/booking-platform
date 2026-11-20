@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { validateBookingInput } from "./booking.validator.js";
 
 const validInput = {
-    customerId: "550e8400-e29b-41d4-a716-446655440000",
     serviceId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     startTime: "2026-11-02T09:00:00+03:00",
 };
@@ -19,14 +18,7 @@ describe("validateBookingInput", () => {
         expect(validateBookingInput("invalid")).toBeNull();
     });
 
-    it("rejects invalid customer and service UUIDs", () => {
-        expect(
-            validateBookingInput({
-                ...validInput,
-                customerId: "not-a-uuid",
-            }),
-        ).toBeNull();
-
+    it("rejects an invalid service UUID", () => {
         expect(
             validateBookingInput({
                 ...validInput,

@@ -17,6 +17,7 @@ const {
     insertBookingMock,
     cancelBookingMock,
     findBookingByIdMock,
+    findBookingByIdForActorMock,
     rescheduleBookingMock,
     clientQueryMock,
     poolConnectMock,
@@ -29,6 +30,7 @@ const {
     insertBookingMock: vi.fn(),
     cancelBookingMock: vi.fn(),
     findBookingByIdMock: vi.fn(),
+    findBookingByIdForActorMock: vi.fn(),
     rescheduleBookingMock: vi.fn(),
     clientQueryMock: vi.fn(),
     poolConnectMock: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock("../repositories/booking.repository.js", () => ({
     insertBooking: insertBookingMock,
     cancelBooking: cancelBookingMock,
     findBookingById: findBookingByIdMock,
+    findBookingByIdForActor: findBookingByIdForActorMock,
     rescheduleBooking: rescheduleBookingMock,
 }));
 
@@ -329,6 +332,11 @@ const existingBooking = {
 };
 
 describe("cancelBookingById", () => {
+    const actor = {
+        userId: existingBooking.customer_id,
+        professionalProfileId: null,
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -341,14 +349,14 @@ describe("cancelBookingById", () => {
 
         cancelBookingMock.mockResolvedValue(cancelledBooking);
 
-        const result = await cancelBookingById(bookingId);
+        const result = await cancelBookingById(bookingId, actor);
 
         expect(result).toEqual({
             ok: true,
             booking: cancelledBooking,
         });
 
-        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, actor);
         expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
             bookingId,
             "cancelled",
@@ -367,58 +375,70 @@ describe("cancelBookingById", () => {
             new Error("Email delivery failed"),
         );
 
-        const result = await cancelBookingById(bookingId);
+        const result = await cancelBookingById(bookingId, actor);
 
         expect(result).toEqual({
             ok: true,
             booking: cancelledBooking,
         });
 
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, actor);
         expect(notifyBookingParticipantsMock).toHaveBeenCalledWith(
             bookingId,
             "cancelled",
         );
-
         expect(findBookingByIdMock).not.toHaveBeenCalled();
     });
 
     it("returns booking_not_found when the booking does not exist", async () => {
         cancelBookingMock.mockResolvedValue(null);
-        findBookingByIdMock.mockResolvedValue(null);
+        findBookingByIdForActorMock.mockResolvedValue(null);
 
-        const result = await cancelBookingById(bookingId);
+        const result = await cancelBookingById(bookingId, actor);
 
         expect(result).toEqual({
             ok: false,
             reason: "booking_not_found",
         });
 
-        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
-        expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, actor);
+        expect(findBookingByIdForActorMock).toHaveBeenCalledWith(
+            bookingId,
+            actor,
+        );
         expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
     });
 
     it("returns booking_not_cancellable when the booking cannot be cancelled", async () => {
         cancelBookingMock.mockResolvedValue(null);
-        findBookingByIdMock.mockResolvedValue(existingBooking);
+        findBookingByIdForActorMock.mockResolvedValue(existingBooking);
 
-        const result = await cancelBookingById(bookingId);
+        const result = await cancelBookingById(bookingId, actor);
 
         expect(result).toEqual({
             ok: false,
             reason: "booking_not_cancellable",
         });
 
-        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId);
-        expect(findBookingByIdMock).toHaveBeenCalledWith(bookingId);
+        expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, actor);
+        expect(findBookingByIdForActorMock).toHaveBeenCalledWith(
+            bookingId,
+            actor,
+        );
         expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
     });
 });
 
 
+
 describe("rescheduleBookingById", () => {
     const newStartTime = "2026-11-02T10:00:00+03:00";
     const releaseMock = vi.fn();
+
+    const actor = {
+        userId: existingBooking.customer_id,
+        professionalProfileId: null,
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -451,6 +471,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
@@ -478,6 +499,7 @@ describe("rescheduleBookingById", () => {
         expect(rescheduleBookingMock).toHaveBeenCalledWith(
             bookingId,
             new Date("2026-11-02T07:00:00.000Z"),
+            actor,
             expect.anything(),
         );
 
@@ -507,6 +529,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
@@ -531,6 +554,34 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            reason: "booking_not_found",
+        });
+
+        expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
+        expect(clientQueryMock).toHaveBeenCalledWith("ROLLBACK");
+
+        expect(isWithinAvailabilityMock).not.toHaveBeenCalled();
+        expect(rescheduleBookingMock).not.toHaveBeenCalled();
+        expect(notifyBookingParticipantsMock).not.toHaveBeenCalled();
+
+        expect(releaseMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns booking_not_found when the actor does not own the booking", async () => {
+        const unauthorizedActor = {
+            userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            professionalProfileId: null,
+        };
+
+        const result = await rescheduleBookingById(
+            bookingId,
+            newStartTime,
+            unauthorizedActor,
         );
 
         expect(result).toEqual({
@@ -557,6 +608,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
@@ -580,6 +632,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
@@ -604,6 +657,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
@@ -626,6 +680,7 @@ describe("rescheduleBookingById", () => {
         const result = await rescheduleBookingById(
             bookingId,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual({
