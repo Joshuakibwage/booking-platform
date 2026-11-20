@@ -9,11 +9,13 @@ import pool from "../db.js";
 import {
     cancelBooking,
     findBookingById,
+    findBookingByIdForActor,
     findBookings,
     insertBooking,
     rescheduleBooking,
     type CreatedBooking,
     type FindBookingsInput,
+    type BookingActor,
 } from "../repositories/booking.repository.js";
 
 import { notifyBookingParticipants } from "./booking-notification.service.js";
@@ -144,8 +146,6 @@ export async function prepareBooking(
     };
 }
 
-
-
 export async function createBooking(
     input: CreateBookingInput,
 ): Promise<CreateBookingResult> {
@@ -222,9 +222,6 @@ export async function createBooking(
     }
 }
 
-
-
-
 export async function getBookings(
     input: FindBookingsInput,
 ): Promise<GetBookingsResult> {
@@ -241,13 +238,11 @@ export async function getBookings(
     };
 }
 
-
-
-
 export async function cancelBookingById(
     bookingId: string,
+    actor: BookingActor,
 ): Promise<CancelBookingResult> {
-    const booking = await cancelBooking(bookingId);
+    const booking = await cancelBooking(bookingId, actor);
 
     if (booking) {
         try {
@@ -276,7 +271,10 @@ export async function cancelBookingById(
         };
     }
 
-    const existingBooking = await findBookingById(bookingId);
+    const existingBooking = await findBookingByIdForActor(
+        bookingId,
+        actor,
+    );
 
     if (!existingBooking) {
         return {
@@ -291,13 +289,10 @@ export async function cancelBookingById(
     };
 }
 
-
-
-
-
 export async function rescheduleBookingById(
     bookingId: string,
     newStartTime: string,
+    actor: BookingActor,
 ): Promise<RescheduleBookingResult> {
     const client = await pool.connect();
     let transactionStarted = false;
@@ -310,6 +305,21 @@ export async function rescheduleBookingById(
         const existingBooking = await findBookingById(bookingId, client);
 
         if (!existingBooking) {
+            await client.query("ROLLBACK");
+            transactionStarted = false;
+
+            return {
+                ok: false,
+                reason: "booking_not_found",
+            };
+        }
+
+        const isBookingOwner =
+            existingBooking.customer_id === actor.userId ||
+            (actor.professionalProfileId !== null &&
+                existingBooking.professional_id === actor.professionalProfileId);
+
+        if (!isBookingOwner) {
             await client.query("ROLLBACK");
             transactionStarted = false;
 
@@ -371,6 +381,7 @@ export async function rescheduleBookingById(
         const booking = await rescheduleBooking(
             bookingId,
             startTime,
+            actor,
             client,
         );
 

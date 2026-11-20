@@ -18,7 +18,6 @@ vi.mock("../db.js", () => ({
     },
 }));
 
-
 const clientQueryMock = vi.fn();
 
 const client = {
@@ -226,12 +225,15 @@ describe("findBookings", () => {
     });
 });
 
-
-
 describe("cancelBooking", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    const actor = {
+        userId: createdBooking.customer_id,
+        professionalProfileId: null,
+    };
 
     it("cancels a confirmed booking and returns the updated record", async () => {
         const cancelledBooking = {
@@ -243,7 +245,10 @@ describe("cancelBooking", () => {
             rows: [cancelledBooking],
         });
 
-        const result = await cancelBooking(createdBooking.booking_id);
+        const result = await cancelBooking(
+            createdBooking.booking_id,
+            actor,
+        );
 
         expect(result).toEqual(cancelledBooking);
         expect(poolQueryMock).toHaveBeenCalledOnce();
@@ -256,8 +261,15 @@ describe("cancelBooking", () => {
         expect(sql).toContain("UPDATE bookings");
         expect(sql).toContain("SET status = 'cancelled'");
         expect(sql).toContain("status = 'confirmed'");
+        expect(sql).toContain("customer_id = $2");
+        expect(sql).toContain("professional_id = $3");
         expect(sql).toContain("RETURNING");
-        expect(values).toEqual([createdBooking.booking_id]);
+
+        expect(values).toEqual([
+            createdBooking.booking_id,
+            actor.userId,
+            actor.professionalProfileId,
+        ]);
     });
 
     it("returns null when no confirmed booking can be cancelled", async () => {
@@ -265,7 +277,10 @@ describe("cancelBooking", () => {
             rows: [],
         });
 
-        const result = await cancelBooking(createdBooking.booking_id);
+        const result = await cancelBooking(
+            createdBooking.booking_id,
+            actor,
+        );
 
         expect(result).toBeNull();
         expect(poolQueryMock).toHaveBeenCalledOnce();
@@ -274,11 +289,16 @@ describe("cancelBooking", () => {
 
 
 describe("rescheduleBooking", () => {
+    const actor = {
+        userId: createdBooking.customer_id,
+        professionalProfileId: null,
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("reschedules a confirmed booking and returns the updated record", async () => {
+    it("reschedules a confirmed booking owned by the actor", async () => {
         const newStartTime = new Date("2026-11-02T09:00:00Z");
         const rescheduledBooking = {
             ...createdBooking,
@@ -293,6 +313,7 @@ describe("rescheduleBooking", () => {
         const result = await rescheduleBooking(
             createdBooking.booking_id,
             newStartTime,
+            actor,
         );
 
         expect(result).toEqual(rescheduledBooking);
@@ -307,21 +328,28 @@ describe("rescheduleBooking", () => {
         expect(sql).toContain("start_time = $2");
         expect(sql).toContain("service_duration_minutes");
         expect(sql).toContain("status = 'confirmed'");
+        expect(sql).toContain("customer_id = $3");
+        expect(sql).toContain("professional_id = $4");
         expect(sql).toContain("RETURNING");
         expect(values).toEqual([
             createdBooking.booking_id,
             newStartTime,
+            actor.userId,
+            actor.professionalProfileId,
         ]);
     });
 
-    it("returns null when no confirmed booking can be rescheduled", async () => {
+    it("returns null when the booking is not owned by the actor or cannot be rescheduled", async () => {
         poolQueryMock.mockResolvedValue({
             rows: [],
         });
 
+        const newStartTime = new Date("2026-11-02T09:00:00Z");
+
         const result = await rescheduleBooking(
             createdBooking.booking_id,
-            new Date("2026-11-02T09:00:00Z"),
+            newStartTime,
+            actor,
         );
 
         expect(result).toBeNull();

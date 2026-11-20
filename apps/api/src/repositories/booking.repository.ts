@@ -1,3 +1,4 @@
+
 import pool from "../db.js";
 import type { PoolClient } from "pg";
 import type { ServiceForBooking } from "./service.repository.js";
@@ -23,7 +24,6 @@ export type CreatedBooking = {
     created_at: Date;
 };
 
-
 export type BookingStatus =
     | "confirmed"
     | "cancelled"
@@ -40,6 +40,11 @@ export type BookingOwner =
           id: string;
       };
 
+export type BookingActor = {
+    userId: string;
+    professionalProfileId: string | null;
+};
+
 export type FindBookingsInput = {
     owner: BookingOwner;
     status?: BookingStatus;
@@ -55,7 +60,6 @@ export type FindBookingsResult = {
     bookings: BookingListItem[];
     total: number;
 };
-
 
 export async function insertBooking(
     client: PoolClient,
@@ -108,8 +112,6 @@ export async function insertBooking(
     return createdBooking;
 }
 
-
-
 export async function findBookings(
     input: FindBookingsInput,
 ): Promise<FindBookingsResult> {
@@ -118,9 +120,7 @@ export async function findBookings(
             ? "customer_id"
             : "professional_id";
 
-    const conditions: string[] = [
-        `${ownerColumn} = $1`,
-    ];
+    const conditions: string[] = [`${ownerColumn} = $1`];
 
     const values: unknown[] = [input.owner.id];
 
@@ -191,10 +191,9 @@ export async function findBookings(
     };
 }
 
-
-
 export async function cancelBooking(
     bookingId: string,
+    actor: BookingActor,
 ): Promise<CreatedBooking | null> {
     const result = await pool.query<CreatedBooking>(
         `
@@ -202,6 +201,10 @@ export async function cancelBooking(
         SET status = 'cancelled'
         WHERE booking_id = $1
           AND status = 'confirmed'
+          AND (
+              customer_id = $2
+              OR ($3::uuid IS NOT NULL AND professional_id = $3)
+          )
         RETURNING
             booking_id,
             customer_id,
@@ -215,17 +218,17 @@ export async function cancelBooking(
             status,
             created_at
         `,
-        [bookingId],
+        [bookingId, actor.userId, actor.professionalProfileId],
     );
 
     return result.rows[0] ?? null;
 }
 
 
-
 export async function rescheduleBooking(
     bookingId: string,
     startTime: Date,
+    actor: BookingActor,
     client?: PoolClient,
 ): Promise<CreatedBooking | null> {
     const db = client ?? pool;
@@ -238,6 +241,10 @@ export async function rescheduleBooking(
             end_time = $2 + (service_duration_minutes * INTERVAL '1 minute')
         WHERE booking_id = $1
           AND status = 'confirmed'
+          AND (
+              customer_id = $3
+              OR ($4::uuid IS NOT NULL AND professional_id = $4)
+          )
         RETURNING
             booking_id,
             customer_id,
@@ -251,13 +258,16 @@ export async function rescheduleBooking(
             status,
             created_at
         `,
-        [bookingId, startTime],
+        [
+            bookingId,
+            startTime,
+            actor.userId,
+            actor.professionalProfileId,
+        ],
     );
 
     return result.rows[0] ?? null;
 }
-
-
 
 export async function findBookingById(
     bookingId: string,
@@ -284,6 +294,37 @@ export async function findBookingById(
         FOR UPDATE
         `,
         [bookingId],
+    );
+
+    return result.rows[0] ?? null;
+}
+
+export async function findBookingByIdForActor(
+    bookingId: string,
+    actor: BookingActor,
+): Promise<CreatedBooking | null> {
+    const result = await pool.query<CreatedBooking>(
+        `
+        SELECT
+            booking_id,
+            customer_id,
+            professional_id,
+            service_id,
+            service_name,
+            service_duration_minutes,
+            service_price,
+            start_time,
+            end_time,
+            status,
+            created_at
+        FROM bookings
+        WHERE booking_id = $1
+          AND (
+              customer_id = $2
+              OR ($3::uuid IS NOT NULL AND professional_id = $3)
+          )
+        `,
+        [bookingId, actor.userId, actor.professionalProfileId],
     );
 
     return result.rows[0] ?? null;

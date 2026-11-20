@@ -1,5 +1,6 @@
 
 import { Router, type Router as ExpressRouter } from "express";
+import { requireAuth } from "../middleware/auth.middleware.js";
 
 import {
     cancelBooking,
@@ -9,8 +10,8 @@ import {
 
 const bookingRouter: ExpressRouter = Router();
 
-bookingRouter.post("/", createBooking);
-bookingRouter.patch("/:bookingId/cancel", cancelBooking);
-bookingRouter.patch("/:bookingId/reschedule", rescheduleBooking);
+bookingRouter.post("/", requireAuth, createBooking);
+bookingRouter.patch("/:bookingId/cancel", requireAuth, cancelBooking);
+bookingRouter.patch("/:bookingId/reschedule", requireAuth, rescheduleBooking);
 
 export default bookingRouter;
