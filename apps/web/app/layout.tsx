@@ -4,7 +4,7 @@ import { Instrument_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
-
+import { Toaster } from "@/components/ui/sonner";
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -42,6 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           disableTransitionOnChange
         >
           <QueryProvider>{children}</QueryProvider>
+          <Toaster position="top-right" />
         </ThemeProvider>
       </body>
     </html>

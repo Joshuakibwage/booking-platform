@@ -28,6 +28,10 @@ export type PublicService = {
     category_slug: string | null;
 };
 
+export type PublicServiceDetails = PublicService & {
+    time_zone: string;
+};
+
 export type PublicServiceFilters = {
     search?: string;
     category?: string;
@@ -255,7 +259,6 @@ export async function deactivateService(
     return result.rows[0] ?? null;
 }
 
-
 export async function findPublicServices(
     filters: PublicServiceFilters = {},
 ): Promise<PublicService[]> {
@@ -300,8 +303,8 @@ export async function findPublicServices(
 
 export async function findPublicServiceById(
     serviceId: string,
-): Promise<PublicService | null> {
-    const result = await pool.query<PublicService>(
+): Promise<PublicServiceDetails | null> {
+    const result = await pool.query<PublicServiceDetails>(
         `
         SELECT
             s.service_id,
@@ -313,6 +316,7 @@ export async function findPublicServiceById(
             s.price,
             s.created_at,
             p.public_name AS professional_name,
+            p.time_zone,
             c.name AS category_name,
             c.slug AS category_slug
         FROM services AS s

@@ -13,6 +13,7 @@ export type PublicService = {
     professional_name: string;
     category_name: string | null;
     category_slug: string | null;
+    time_zone: string;
 };
 
 export type PublicServiceCategory = {
