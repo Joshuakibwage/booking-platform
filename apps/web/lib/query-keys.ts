@@ -16,6 +16,19 @@ export const queryKeys = {
             professionalId?: string;
         }) => ["public", "services", filters] as const,
 
+        availability: (
+            professionalId: string,
+            serviceId: string,
+            date: string,
+        ) =>
+            [
+                "public",
+                "availability",
+                professionalId,
+                serviceId,
+                date,
+            ] as const,
+
         serviceCategories: ["public", "service-categories"] as const,
 
         professionals: (filters: {

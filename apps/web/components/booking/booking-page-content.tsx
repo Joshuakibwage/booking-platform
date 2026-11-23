@@ -3,11 +3,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
     AuthDialog,
     type AuthMode,
 } from "@/components/auth/auth-dialog";
+import { BookingScheduler } from "@/components/booking/booking-scheduler";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/auth/use-current-user";
 import { useLogin } from "@/hooks/auth/use-login";
@@ -24,7 +26,11 @@ type BookingPageContentProps = {
 export function BookingPageContent({
     serviceId,
 }: BookingPageContentProps) {
-    const [isAuthOpen, setIsAuthOpen] = useState(false);
+    const [isManualAuthOpen, setIsManualAuthOpen] = useState(false);
+    const [dismissedServiceId, setDismissedServiceId] = useState<string | null>(
+        null,
+    );
+
     const [authMode, setAuthMode] = useState<AuthMode>("login");
 
     const [loginError, setLoginError] = useState<string | null>(null);
@@ -47,12 +53,29 @@ export function BookingPageContent({
         refetch,
     } = usePublicService(serviceId);
 
+    const shouldAutoOpenAuth =
+        service?.service_id === serviceId &&
+        !isLoading &&
+        !isError &&
+        !isUserLoading &&
+        !isUserError &&
+        currentUser === null &&
+        dismissedServiceId !== serviceId;
+
+    const isAuthOpen = shouldAutoOpenAuth || isManualAuthOpen;
+
     async function handleLoginSubmit(values: LoginFormValues) {
         setLoginError(null);
 
         try {
             await loginMutation.mutateAsync(values);
-            setIsAuthOpen(false);
+
+            toast.success("Signed in successfully", {
+                duration: 4000,
+            });
+
+            setDismissedServiceId(serviceId);
+            setIsManualAuthOpen(false);
         } catch (error: unknown) {
             setLoginError(
                 getApiErrorMessage(
@@ -68,7 +91,13 @@ export function BookingPageContent({
 
         try {
             await registerMutation.mutateAsync(values);
-            setIsAuthOpen(false);
+
+            toast.success("Account created successfully", {
+                duration: 4000,
+            });
+
+            setDismissedServiceId(serviceId);
+            setIsManualAuthOpen(false);
         } catch (error: unknown) {
             setRegisterError(
                 getApiErrorMessage(
@@ -80,9 +109,9 @@ export function BookingPageContent({
     }
 
     function handleAuthOpenChange(open: boolean) {
-        setIsAuthOpen(open);
-
         if (!open) {
+            setDismissedServiceId(serviceId);
+            setIsManualAuthOpen(false);
             setLoginError(null);
             setRegisterError(null);
         }
@@ -167,6 +196,7 @@ export function BookingPageContent({
                             <p className="text-sm text-muted-foreground">
                                 Price
                             </p>
+
                             <p className="mt-1 text-xl font-semibold tabular-nums">
                                 {Number(service.price).toLocaleString()}
                             </p>
@@ -176,87 +206,91 @@ export function BookingPageContent({
                             <p className="text-sm text-muted-foreground">
                                 Duration
                             </p>
+
                             <p className="mt-1 text-xl font-semibold tabular-nums">
                                 {service.duration_minutes} min
                             </p>
                         </div>
                     </div>
 
-                    <div className="mt-10 rounded-xl border border-border p-6">
-                        {isUserLoading ? (
-                            <p
-                                role="status"
-                                className="text-sm text-muted-foreground"
-                            >
-                                Checking your account...
-                            </p>
-                        ) : isUserError ? (
-                            <>
-                                <h2 className="text-lg font-semibold">
-                                    Unable to verify your account
-                                </h2>
-
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    We couldn&apos;t check your sign-in status.
-                                    Please try again.
-                                </p>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="mt-4"
-                                    onClick={() => void refetchCurrentUser()}
+                    {!currentUser && (
+                        <div className="mt-10 rounded-xl border border-border p-6">
+                            {isUserLoading ? (
+                                <p
+                                    role="status"
+                                    className="text-sm text-muted-foreground"
                                 >
-                                    Try again
-                                </Button>
-                            </>
-                        ) : currentUser ? (
-                            <>
-                                <h2 className="text-lg font-semibold">
-                                    You&apos;re signed in
-                                </h2>
-
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    You can continue with this service. Booking
-                                    details will be available in the next step.
+                                    Checking your account...
                                 </p>
-                            </>
-                        ) : (
-                            <>
-                                <h2 className="text-lg font-semibold">
-                                    Ready to book this service?
-                                </h2>
+                            ) : isUserError ? (
+                                <>
+                                    <h2 className="text-lg font-semibold">
+                                        Unable to verify your account
+                                    </h2>
 
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    Sign in to your account or create one to
-                                    continue with your booking.
-                                </p>
-
-                                <div className="mt-5 flex flex-wrap gap-3">
-                                    <Button
-                                        type="button"
-                                        onClick={() => {
-                                            setAuthMode("login");
-                                            setIsAuthOpen(true);
-                                        }}
-                                    >
-                                        Sign in
-                                    </Button>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        We couldn&apos;t check your sign-in status.
+                                        Please try again.
+                                    </p>
 
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => {
-                                            setAuthMode("register");
-                                            setIsAuthOpen(true);
-                                        }}
+                                        className="mt-4"
+                                        onClick={() =>
+                                            void refetchCurrentUser()
+                                        }
                                     >
-                                        Create account
+                                        Try again
                                     </Button>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <h2 className="text-lg font-semibold">
+                                        Ready to book this service?
+                                    </h2>
+
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        Sign in to your account or create one to
+                                        continue with your booking.
+                                    </p>
+
+                                    <div className="mt-5 flex flex-wrap gap-3">
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                                setAuthMode("login");
+                                                setIsManualAuthOpen(true);
+                                            }}
+                                        >
+                                            Sign in
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setAuthMode("register");
+                                                setIsManualAuthOpen(true);
+                                            }}
+                                        >
+                                            Create account
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {currentUser && !isUserLoading && !isUserError && (
+                        <div className="mt-10">
+                            <BookingScheduler
+                                serviceId={service.service_id}
+                                professionalId={service.professional_id}
+                                timeZone={service.time_zone}
+                            />
+                        </div>
+                    )}
                 </section>
             </section>
 

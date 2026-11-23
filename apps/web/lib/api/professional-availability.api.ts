@@ -34,6 +34,17 @@ export type CreateAvailabilityExceptionInput = {
     reason?: string | null;
 };
 
+export type AvailableSlot = {
+    startTime: string;
+    endTime: string;
+};
+
+export type PublicAvailability = {
+    date: string;
+    timeZone: string;
+    slots: AvailableSlot[];
+};
+
 export type UpdateAvailabilityExceptionInput =
     CreateAvailabilityExceptionInput;
 
@@ -111,4 +122,22 @@ export async function deleteAvailabilityException(
     exceptionId: string,
 ): Promise<void> {
     await api.delete(`/professionals/exceptions/${exceptionId}`);
+}
+
+export async function getPublicAvailability(
+    professionalId: string,
+    serviceId: string,
+    date: string,
+): Promise<PublicAvailability> {
+    const response = await api.get<ApiResponse<PublicAvailability>>(
+        `/professionals/${professionalId}/availability`,
+        {
+            params: {
+                serviceId,
+                date,
+            },
+        },
+    );
+
+    return response.data.data;
 }
