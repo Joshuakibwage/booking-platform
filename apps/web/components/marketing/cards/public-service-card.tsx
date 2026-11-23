@@ -1,3 +1,6 @@
+
+import Link from "next/link";
+
 import {
     Card,
     CardDescription,
@@ -5,6 +8,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { PublicService } from "@/lib/api/public-discovery.api";
 
 type PublicServiceCardProps = {
@@ -15,7 +19,7 @@ export function PublicServiceCard({ service }: PublicServiceCardProps) {
     const formattedPrice = Number(service.price).toLocaleString();
 
     return (
-        <Card className="h-full transition-colors duration-300 hover:border-foreground/25 motion-reduce:transition-none">
+        <Card className="flex h-full flex-col transition-colors duration-300 hover:border-foreground/25 motion-reduce:transition-none">
             <CardHeader>
                 {service.category_name && (
                     <p className="text-xs font-medium text-muted-foreground">
@@ -32,7 +36,7 @@ export function PublicServiceCard({ service }: PublicServiceCardProps) {
                 )}
             </CardHeader>
 
-            <CardFooter className="mt-auto flex-col items-stretch gap-3 border-t">
+            <CardFooter className="mt-auto flex-col items-stretch gap-4 border-t">
                 <p className="text-sm text-muted-foreground">
                     By {service.professional_name}
                 </p>
@@ -46,6 +50,14 @@ export function PublicServiceCard({ service }: PublicServiceCardProps) {
                         {service.duration_minutes} min
                     </p>
                 </div>
+
+                <Button
+                    nativeButton={false}
+                    className="w-full"
+                    render={<Link href={`/book/${service.service_id}`} />}
+                >
+                    Book now
+                </Button>
             </CardFooter>
         </Card>
     );

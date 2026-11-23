@@ -64,6 +64,16 @@ export async function getPublicServices(
     return response.data.data;
 }
 
+export async function getPublicService(
+    serviceId: string,
+): Promise<PublicService> {
+    const response = await api.get<ApiResponse<PublicService>>(
+        `/services/${serviceId}`,
+    );
+
+    return response.data.data;
+}
+
 export async function getPublicServiceCategories(): Promise<
     PublicServiceCategory[]
 > {
