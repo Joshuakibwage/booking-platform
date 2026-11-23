@@ -1,6 +1,9 @@
 
 import { describe, expect, it } from "vitest";
-import { validatePublicServiceFilters } from "./public-service.validator.js";
+import {
+    validatePublicServiceFilters,
+    validatePublicServiceId,
+} from "./public-service.validator.js";
 
 describe("validatePublicServiceFilters", () => {
     const professionalId = "550e8400-e29b-41d4-a716-446655440000";
@@ -107,5 +110,24 @@ describe("validatePublicServiceFilters", () => {
         expect(validatePublicServiceFilters(null)).toBeNull();
         expect(validatePublicServiceFilters([])).toBeNull();
         expect(validatePublicServiceFilters("haircut")).toBeNull();
+    });
+
+});
+
+describe("validatePublicServiceId", () => {
+    const serviceId = "550e8400-e29b-41d4-a716-446655440000";
+
+    it("accepts a valid service UUID", () => {
+        expect(validatePublicServiceId(serviceId)).toBe(serviceId);
+    });
+
+    it("rejects an invalid UUID", () => {
+        expect(validatePublicServiceId("not-a-uuid")).toBeNull();
+    });
+
+    it("rejects non-string values", () => {
+        expect(validatePublicServiceId(undefined)).toBeNull();
+        expect(validatePublicServiceId(null)).toBeNull();
+        expect(validatePublicServiceId(123)).toBeNull();
     });
 });

@@ -11,7 +11,10 @@ vi.mock("../db.js", () => ({
     },
 }));
 
-import { findPublicServices } from "./service.repository.js";
+import {
+    findPublicServiceById,
+    findPublicServices,
+} from "./service.repository.js";
 
 describe("findPublicServices", () => {
     const professionalId = "550e8400-e29b-41d4-a716-446655440000";
@@ -143,5 +146,50 @@ describe("findPublicServices", () => {
         });
 
         expect(result).toEqual([]);
+    });
+});
+
+
+describe("findPublicServiceById", () => {
+    const serviceId = "550e8400-e29b-41d4-a716-446655440000";
+
+    it("returns a public service by ID", async () => {
+        const service = {
+            service_id: serviceId,
+            professional_id: "550e8400-e29b-41d4-a716-446655440001",
+            category_id: null,
+            name: "Haircut",
+            description: "Professional haircut service",
+            duration_minutes: 45,
+            price: "1500.00",
+            professional_name: "Alex",
+            category_name: null,
+            category_slug: null,
+        };
+
+        queryMock.mockResolvedValue({ rows: [service] });
+
+        const result = await findPublicServiceById(serviceId);
+
+        expect(result).toEqual(service);
+        expect(queryMock).toHaveBeenCalledOnce();
+
+        const query = queryMock.mock.calls[0]?.[0];
+
+        expect(query).toContain("WHERE s.service_id = $1");
+        expect(query).toContain("s.is_active = TRUE");
+        expect(query).toContain("JOIN professional_profiles AS p");
+        expect(query).toContain("LEFT JOIN service_categories AS c");
+        expect(query).toContain("LIMIT 1");
+
+        expect(queryMock.mock.calls[0]?.[1]).toEqual([serviceId]);
+    });
+
+    it("returns null when the service does not exist or is inactive", async () => {
+        queryMock.mockResolvedValue({ rows: [] });
+
+        const result = await findPublicServiceById(serviceId);
+
+        expect(result).toBeNull();
     });
 });

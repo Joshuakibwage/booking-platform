@@ -297,3 +297,36 @@ export async function findPublicServices(
 
     return result.rows;
 }
+
+export async function findPublicServiceById(
+    serviceId: string,
+): Promise<PublicService | null> {
+    const result = await pool.query<PublicService>(
+        `
+        SELECT
+            s.service_id,
+            s.professional_id,
+            s.category_id,
+            s.name,
+            s.description,
+            s.duration_minutes,
+            s.price,
+            s.created_at,
+            p.public_name AS professional_name,
+            c.name AS category_name,
+            c.slug AS category_slug
+        FROM services AS s
+        JOIN professional_profiles AS p
+            ON p.profile_id = s.professional_id
+        LEFT JOIN service_categories AS c
+            ON c.category_id = s.category_id
+           AND c.is_active = TRUE
+        WHERE s.service_id = $1
+          AND s.is_active = TRUE
+        LIMIT 1
+        `,
+        [serviceId],
+    );
+
+    return result.rows[0] ?? null;
+}

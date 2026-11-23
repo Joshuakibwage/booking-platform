@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 
-const { findPublicServicesMock } = vi.hoisted(() => ({
+const {
+    findPublicServicesMock,
+    findPublicServiceByIdMock,
+} = vi.hoisted(() => ({
     findPublicServicesMock: vi.fn(),
+    findPublicServiceByIdMock: vi.fn(),
 }));
 
 vi.mock("../repositories/service.repository.js", () => ({
     findPublicServices: findPublicServicesMock,
+    findPublicServiceById: findPublicServiceByIdMock,
 }));
 
-import { getPublicServicesHandler } from "./public-service.controller.js";
+import {
+    getPublicServiceHandler,
+    getPublicServicesHandler,
+} from "./public-service.controller.js";
 
 describe("getPublicServicesHandler", () => {
     const res = {
@@ -103,6 +111,101 @@ describe("getPublicServicesHandler", () => {
         findPublicServicesMock.mockRejectedValue(error);
 
         await getPublicServicesHandler(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(error);
+        expect(res.status).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
+    });
+});
+
+describe("getPublicServiceHandler", () => {
+    const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockReturnThis(),
+    } as unknown as Response;
+
+    const next = vi.fn() as NextFunction;
+
+    const serviceId = "550e8400-e29b-41d4-a716-446655440000";
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns a public service successfully", async () => {
+        const service = {
+            service_id: serviceId,
+            professional_id: "550e8400-e29b-41d4-a716-446655440001",
+            name: "Haircut",
+            description: "Professional haircut",
+            duration_minutes: 45,
+            price: "1500.00",
+            professional_name: "Alex",
+            category_name: "Beauty & personal care",
+            category_slug: "beauty-personal-care",
+        };
+
+        const req = {
+            params: { serviceId },
+        } as unknown as Request;
+
+        findPublicServiceByIdMock.mockResolvedValue(service);
+
+        await getPublicServiceHandler(req, res, next);
+
+        expect(findPublicServiceByIdMock).toHaveBeenCalledWith(serviceId);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            status: "success",
+            data: service,
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when the service ID is invalid", async () => {
+        const req = {
+            params: { serviceId: "invalid-id" },
+        } as unknown as Request;
+
+        await getPublicServiceHandler(req, res, next);
+
+        expect(findPublicServiceByIdMock).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            status: "error",
+            message: "Invalid service ID.",
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 when the service does not exist", async () => {
+        const req = {
+            params: { serviceId },
+        } as unknown as Request;
+
+        findPublicServiceByIdMock.mockResolvedValue(null);
+
+        await getPublicServiceHandler(req, res, next);
+
+        expect(findPublicServiceByIdMock).toHaveBeenCalledWith(serviceId);
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({
+            status: "error",
+            message: "Service not found.",
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("forwards repository errors to the error handler", async () => {
+        const error = new Error("Database connection failed");
+
+        const req = {
+            params: { serviceId },
+        } as unknown as Request;
+
+        findPublicServiceByIdMock.mockRejectedValue(error);
+
+        await getPublicServiceHandler(req, res, next);
 
         expect(next).toHaveBeenCalledWith(error);
         expect(res.status).not.toHaveBeenCalled();

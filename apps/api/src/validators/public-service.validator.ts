@@ -61,3 +61,17 @@ export function validatePublicServiceFilters(
         ...(professionalId ? { professionalId } : {}),
     };
 }
+
+
+export function validatePublicServiceId(
+    serviceId: unknown,
+): string | null {
+    if (
+        typeof serviceId !== "string" ||
+        !UUID_REGEX.test(serviceId)
+    ) {
+        return null;
+    }
+
+    return serviceId;
+}

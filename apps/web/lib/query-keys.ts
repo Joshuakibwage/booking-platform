@@ -25,5 +25,8 @@ export const queryKeys = {
 
         professionalProfile: (professionalId: string) =>
             ["public", "professional-profile", professionalId] as const,
+
+        service: (serviceId: string) =>
+            ["public", "service", serviceId] as const,
     },
 } as const;
