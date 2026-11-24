@@ -29,6 +29,10 @@ export function useCreateBooking() {
                     variables.date,
                 ),
             });
+
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.customer.bookings({}),
+            });
         },
     });
 }
