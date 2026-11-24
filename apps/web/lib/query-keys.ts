@@ -42,4 +42,14 @@ export const queryKeys = {
         service: (serviceId: string) =>
             ["public", "service", serviceId] as const,
     },
+
+    customer: {
+        bookings: (filters: {
+            status?: "confirmed" | "cancelled" | "completed" | "no_show";
+            from?: string;
+            to?: string;
+            page?: number;
+            limit?: number;
+        }) => ["customer", "bookings", filters] as const,
+    },
 } as const;
