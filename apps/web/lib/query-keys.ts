@@ -8,6 +8,13 @@ export const queryKeys = {
         services: ["professional", "services"],
         weeklyAvailability: ["professional", "weekly-availability"],
         availabilityExceptions: ["professional", "availability-exceptions"],
+        bookings: (filters: {
+            status?: "confirmed" | "cancelled" | "completed" | "no_show";
+            from?: string;
+            to?: string;
+            page?: number;
+            limit?: number;
+        }) => ["professional", "bookings", filters] as const,
     },
     public: {
         services: (filters: {

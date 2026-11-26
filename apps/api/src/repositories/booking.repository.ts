@@ -54,7 +54,10 @@ export type FindBookingsInput = {
     limit: number;
 };
 
-export type BookingListItem = CreatedBooking;
+export type BookingListItem = CreatedBooking & {
+    customer_display_name: string;
+    professional_time_zone: string;
+};
 
 export type FindBookingsResult = {
     bookings: BookingListItem[];
@@ -115,10 +118,11 @@ export async function insertBooking(
 export async function findBookings(
     input: FindBookingsInput,
 ): Promise<FindBookingsResult> {
+
     const ownerColumn =
         input.owner.type === "customer"
-            ? "customer_id"
-            : "professional_id";
+            ? "b.customer_id"
+            : "b.professional_id";
 
     const conditions: string[] = [`${ownerColumn} = $1`];
 
@@ -126,12 +130,12 @@ export async function findBookings(
 
     if (input.status) {
         values.push(input.status);
-        conditions.push(`status = $${values.length}`);
+        conditions.push(`b.status = $${values.length}`);
     }
 
     if (input.from) {
         values.push(input.from);
-        conditions.push(`start_time >= $${values.length}::date`);
+        conditions.push(`b.start_time >= $${values.length}::date`);
     }
 
     if (input.to) {
@@ -139,7 +143,7 @@ export async function findBookings(
         dayAfterTo.setUTCDate(dayAfterTo.getUTCDate() + 1);
 
         values.push(dayAfterTo.toISOString().slice(0, 10));
-        conditions.push(`start_time < $${values.length}::date`);
+        conditions.push(`b.start_time < $${values.length}::date`);
     }
 
     const whereClause = conditions.join(" AND ");
@@ -147,7 +151,7 @@ export async function findBookings(
     const countResult = await pool.query<{ total: string }>(
         `
         SELECT COUNT(*) AS total
-        FROM bookings
+        FROM bookings AS b
         WHERE ${whereClause}
         `,
         values,
@@ -165,20 +169,26 @@ export async function findBookings(
     const bookingsResult = await pool.query<BookingListItem>(
         `
         SELECT
-            booking_id,
-            customer_id,
-            professional_id,
-            service_id,
-            service_name,
-            service_duration_minutes,
-            service_price,
-            start_time,
-            end_time,
-            status,
-            created_at
-        FROM bookings
+            b.booking_id,
+            b.customer_id,
+            b.professional_id,
+            b.service_id,
+            b.service_name,
+            b.service_duration_minutes,
+            b.service_price,
+            b.start_time,
+            b.end_time,
+            b.status,
+            b.created_at,
+            u.display_name AS customer_display_name,
+            p.time_zone AS professional_time_zone
+        FROM bookings AS b
+        INNER JOIN users AS u
+            ON u.user_id = b.customer_id
+        INNER JOIN professional_profiles AS p
+            ON p.profile_id = b.professional_id
         WHERE ${whereClause}
-        ORDER BY start_time DESC, booking_id DESC
+        ORDER BY b.start_time DESC, b.booking_id DESC
         LIMIT $${paginationValues.length - 1}
         OFFSET $${paginationValues.length}
         `,

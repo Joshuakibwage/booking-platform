@@ -52,6 +52,12 @@ const createdBooking = {
     created_at: new Date("2026-10-20T10:00:00Z"),
 };
 
+const bookingListItem = {
+    ...createdBooking,
+    customer_display_name: "Jane Doe",
+    professional_time_zone: "Africa/Nairobi",
+};
+
 describe("insertBooking", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -111,7 +117,7 @@ describe("findBookings", () => {
                 rows: [{ total: "1" }],
             })
             .mockResolvedValueOnce({
-                rows: [createdBooking],
+                rows: [bookingListItem],
             });
 
         const result = await findBookings({
@@ -124,17 +130,29 @@ describe("findBookings", () => {
         });
 
         expect(result).toEqual({
-            bookings: [createdBooking],
+            bookings: [bookingListItem],
             total: 1,
         });
 
         expect(poolQueryMock).toHaveBeenCalledTimes(2);
+
         expect(poolQueryMock.mock.calls[0]?.[0]).toContain(
-            "customer_id = $1",
+            "b.customer_id = $1",
         );
-        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([
-            customerId,
-        ]);
+        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([customerId]);
+
+        const bookingsSql = poolQueryMock.mock.calls[1]?.[0] as string;
+
+        expect(bookingsSql).toContain("INNER JOIN users AS u");
+        expect(bookingsSql).toContain(
+            "INNER JOIN professional_profiles AS p",
+        );
+        expect(bookingsSql).toContain(
+            "u.display_name AS customer_display_name",
+        );
+        expect(bookingsSql).toContain(
+            "p.time_zone AS professional_time_zone",
+        );
     });
 
     it("filters professional bookings by professional ID", async () => {
@@ -161,11 +179,9 @@ describe("findBookings", () => {
         });
 
         expect(poolQueryMock.mock.calls[0]?.[0]).toContain(
-            "professional_id = $1",
+            "b.professional_id = $1",
         );
-        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([
-            professionalId,
-        ]);
+        expect(poolQueryMock.mock.calls[0]?.[1]).toEqual([professionalId]);
     });
 
     it("applies status and date filters with pagination", async () => {
@@ -174,7 +190,7 @@ describe("findBookings", () => {
                 rows: [{ total: "25" }],
             })
             .mockResolvedValueOnce({
-                rows: [createdBooking],
+                rows: [bookingListItem],
             });
 
         await findBookings({
@@ -199,9 +215,9 @@ describe("findBookings", () => {
             unknown[],
         ];
 
-        expect(countCall[0]).toContain("status = $2");
-        expect(countCall[0]).toContain("start_time >= $3::date");
-        expect(countCall[0]).toContain("start_time < $4::date");
+        expect(countCall[0]).toContain("b.status = $2");
+        expect(countCall[0]).toContain("b.start_time >= $3::date");
+        expect(countCall[0]).toContain("b.start_time < $4::date");
 
         expect(countCall[1]).toEqual([
             customerId,
@@ -210,7 +226,9 @@ describe("findBookings", () => {
             "2026-12-01",
         ]);
 
-        expect(bookingsCall[0]).toContain("ORDER BY start_time DESC");
+        expect(bookingsCall[0]).toContain(
+            "ORDER BY b.start_time DESC, b.booking_id DESC",
+        );
         expect(bookingsCall[0]).toContain("LIMIT $5");
         expect(bookingsCall[0]).toContain("OFFSET $6");
 
@@ -287,7 +305,6 @@ describe("cancelBooking", () => {
     });
 });
 
-
 describe("rescheduleBooking", () => {
     const actor = {
         userId: createdBooking.customer_id,
@@ -331,6 +348,7 @@ describe("rescheduleBooking", () => {
         expect(sql).toContain("customer_id = $3");
         expect(sql).toContain("professional_id = $4");
         expect(sql).toContain("RETURNING");
+
         expect(values).toEqual([
             createdBooking.booking_id,
             newStartTime,
