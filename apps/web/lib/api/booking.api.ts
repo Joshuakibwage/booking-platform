@@ -1,3 +1,4 @@
+
 import { api } from "@/lib/axios";
 import type { ApiResponse } from "@/types/api";
 
@@ -20,6 +21,11 @@ export type Booking = {
     created_at: string;
 };
 
+export type BookingListItem = Booking & {
+    customer_display_name: string;
+    professional_time_zone: string;
+};
+
 export type BookingStatus =
     | "confirmed"
     | "cancelled"
@@ -27,7 +33,7 @@ export type BookingStatus =
     | "no_show";
 
 export type BookingListResponse = {
-    bookings: Booking[];
+    bookings: BookingListItem[];
     pagination: {
         page: number;
         limit: number;
@@ -60,6 +66,17 @@ export async function getCustomerBookings(
 ): Promise<BookingListResponse> {
     const response = await api.get<ApiResponse<BookingListResponse>>(
         "/customers/bookings",
+        { params: filters },
+    );
+
+    return response.data.data;
+}
+
+export async function getProfessionalBookings(
+    filters: BookingListFilters = {},
+): Promise<BookingListResponse> {
+    const response = await api.get<ApiResponse<BookingListResponse>>(
+        "/professionals/bookings",
         { params: filters },
     );
 
